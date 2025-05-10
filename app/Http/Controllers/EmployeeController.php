@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\FormatHelper;
 use App\Http\Resources\EmployeeResource;
 use Illuminate\Http\Request;
 use App\Models\Employee;
@@ -15,9 +16,13 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
+use App\Traits\ApiResponse;
+
 
 class EmployeeController extends Controller
 {
+    use ApiResponse;
+
     // Store all employee details (Personal, Job, Compensation, Legal, Experience, Emergency) in one API
     public function storeCompleteEmployee(Request $request)
     {
@@ -26,7 +31,31 @@ class EmployeeController extends Controller
 
         try {
             // Convert all the incoming camelCase data into snake_case
-            $requestData = $this->camelToSnake($request->all());
+            $requestData = FormatHelper::camelToSnake($request->all());
+
+            // Get the currently logged-in user
+            $user = auth()->user();
+
+            // Assuming the role IDs are: Owner = 1, HR = 2, Recruiter = 3, Finance = 3
+            $allowedRoles = [1, 2, 3, 4];
+
+            if (!in_array($user->role, $allowedRoles)) {
+                return $this->errorResponse(
+                    'Unauthorized: You do not have permission to add an employee.',
+                    403
+                );
+            }
+
+            // Fetch company details (assuming a company relation exists on User model)
+            $company = $user->company; // Assuming there is a company() relationship on the User model.
+
+            // Ensure the company exists
+            if (!$company) {
+                return $this->errorResponse(
+                    'Company details not found for the logged-in user.',
+                    404
+                );
+            }
 
             // Step 1: Personal Details
             $personalData = $requestData['personal'] ?? [];
@@ -50,9 +79,11 @@ class EmployeeController extends Controller
 
             if ($request->hasFile('personal.profileImage')) {
                 // Use store() method which will automatically move the file from the temporary location
-                $validatedEmployee['profile_image'] = $request->file('personal.profileImage')->store('private/profiles', 'local');
+                $validatedEmployee['profile_image'] = $request->file('personal.profileImage')->store('profiles', 'public');
             }
 
+            // Add the company_id to the employee data before saving
+            $validatedEmployee['company_id'] = $company->id;
 
             $employee = Employee::create($validatedEmployee);
 
@@ -107,17 +138,18 @@ class EmployeeController extends Controller
                 'tax_id_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
             ])->validate();
 
+
             // Log::info('Validated legal data:', $validatedLegal);
 
             // Store files if present
             if ($request->hasFile('legalDocuments.ssnFile')) {
-                $validatedLegal['ssn_file'] = $request->file('legalDocuments.ssnFile')->store('private/legal_docs', 'local');
+                $validatedLegal['ssn_file'] = $request->file('legalDocuments.ssnFile')->store('legal_docs', 'public');
             }
             if ($request->hasFile('legalDocuments.nationalIdFile')) {
-                $validatedLegal['national_id_file'] = $request->file('legalDocuments.nationalIdFile')->store('private/legal_docs', 'local');
+                $validatedLegal['national_id_file'] = $request->file('legalDocuments.nationalIdFile')->store('legal_docs', 'public');
             }
             if ($request->hasFile('legalDocuments.taxIdFile')) {
-                $validatedLegal['tax_id_file'] = $request->file('legalDocuments.taxIdFile')->store('private/legal_docs', 'local');
+                $validatedLegal['tax_id_file'] = $request->file('legalDocuments.taxIdFile')->store('legal_docs', 'public');
             }
 
             // Create related model entry
@@ -138,7 +170,7 @@ class EmployeeController extends Controller
 
 
             if ($request->hasFile('experience.resume')) {
-                $validatedExperience['resume'] = $request->file('experience.resume')->store('private/resumes', 'local');
+                $validatedExperience['resume'] = $request->file('experience.resume')->store('resumes', 'public');
             }
 
             $employee->experienceDetail()->create($validatedExperience);
@@ -155,33 +187,40 @@ class EmployeeController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'message' => 'Employee and related information saved successfully!',
-                'employee_id' => $employee->id
-            ], 201);
+            return $this->successResponse(
+                ['employee_id' => $employee->id],
+                'Employee and related information saved successfully!',
+            );
         } catch (\Exception $e) {
 
             DB::rollBack();
             // Check for duplicate entry for the work_email field
             if ($e->getCode() == 23000 && strpos($e->getMessage(), 'employees_work_email_unique') !== false) {
-                return response()->json([
-                    'error' => 'The email address is already in use. Please provide a unique email address.'
-                ], 422);
+                return $this->errorResponse(
+                    'The email address is already in use. Please provide a unique email address.',
+                    422
+                );
             }
-
             // For other exceptions
-            return response()->json([
-                'error' => 'Something went wrong: ' . $e->getMessage()
-            ], 500);
+            return $this->errorResponse(
+                'Something went wrong: ' . $e->getMessage(),
+                500
+            );
         }
     }
 
 
     // Get by emplopyee id (specific-employee)
-    public function showCompleteEmployee($id)
+    public function getEmployeeDetailsById($id)
     {
         try {
+            $user = auth()->user(); // assuming auth is set up
+
+            $allowedRoles = [1, 2, 3, 4];
+
+            // Fetch the employee by ID
             $employee = Employee::with([
+                'company',
                 'jobDetail',
                 'compensationDetail',
                 'legalDocument',
@@ -189,46 +228,65 @@ class EmployeeController extends Controller
                 'emergencyContact'
             ])->findOrFail($id);
 
-            return new EmployeeResource($employee);
+            // Check if the logged-in user is accessing their own data,
+            // or if they have an allowed role (Owner, HR, Recruiter, Finance),
+            // and that the employee belongs to the same company
+            if (($user->employee_id !== $employee->id && !in_array($user->role, $allowedRoles)) || $user->company_id !== $employee->company_id) {
+                return $this->errorResponse(
+                    'Unauthorized: You do not have permission to view this employee.',
+                    403
+                );
+            }
+
+            return $this->successResponse(new EmployeeResource($employee), 'Employee details fetched successfully');
         } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Employee not found or an error occurred: ' . $e->getMessage()
-            ], 404);
+            return $this->errorResponse(
+                'Employee not found or an error occurred: ' . $e->getMessage(),
+                404
+            );
         }
     }
 
-    public function listCompleteEmployees()
+    // Get list of all employee from a specific company
+    public function listAllEmployees()
     {
         try {
+            $user = auth()->user();
+
+            // Check if user is authenticated
+            if (!$user) {
+                return $this->errorResponse('Unauthorized: User not authenticated.', 401);
+            }
+
+
+            // Allowed role IDs: Owner = 1, HR = 2, Recruiter = 3, Finance = 4
+            $allowedRoles = [1, 2, 3, 4];
+
+            if (!in_array($user->role, $allowedRoles)) {
+                return $this->errorResponse('Unauthorized: You do not have permission to view employees.', 403);
+            }
+
+            // Ensure user has a company
+            if (!$user->company_id) {
+                return $this->errorResponse('Unauthorized: No company associated with this user.', 403);
+            }
+
+
+            // Fetch employees from the same company
             $employees = Employee::with([
+                'company',
                 'jobDetail',
                 'compensationDetail',
                 'legalDocument',
                 'experienceDetail',
                 'emergencyContact'
-            ])->get();
+            ])->where('company_id', $user->company_id)->get();
 
-            return EmployeeResource::collection($employees);
+            // Return the employees using the EmployeeResource collection
+            return $this->successResponse(EmployeeResource::collection($employees), 'Employees fetched successfully');
         } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'An error occurred while fetching employees: ' . $e->getMessage()
-            ], 500);
+            // Return a standardized error response in case of an exception
+            return $this->errorResponse('An error occurred while fetching employees: ' . $e->getMessage(), 500);
         }
-    }
-
-    /**
-     * Helper function to convert camelCase to snake_case
-     */
-    private function camelToSnake(array $data)
-    {
-        $converted = [];
-        foreach ($data as $key => $value) {
-            $key = Str::snake($key);
-            if (is_array($value)) {
-                $value = $this->camelToSnake($value);
-            }
-            $converted[$key] = $value;
-        }
-        return $converted;
     }
 }

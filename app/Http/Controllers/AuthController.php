@@ -4,10 +4,14 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\UserResource;
+use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
+
 class AuthController extends Controller
 {
     /**
@@ -25,14 +29,15 @@ class AuthController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function login(Request $request){
+    public function login(Request $request)
+    {
 
-    	$validator = Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required|string',
         ]);
         if ($validator->fails()) {
-            return response()->json([ 'status'=> "error", 'message' => $validator->messages()], 400);
+            return response()->json(['status' => "error", 'message' => $validator->messages()], 400);
         }
         $credentials = $request->only('email', 'password');
 
@@ -48,37 +53,57 @@ class AuthController extends Controller
      * @return \Illuminate\Http\JsonResponse
      */
 
-     public function register(Request $request) {
+
+    /**
+     * Register a User and create a new Company.
+     */
+    public function register(Request $request)
+    {
+        Log::info('Raw request body:', ['body' => $request->getContent()]);
+        Log::info('Parsed request all():', $request->all());
+        Log::info('Register request data:', $request->all());
+
+        // Validation rules for user and company fields
         $validator = Validator::make($request->all(), [
             'companyName' => ['required', 'string', 'max:255'],
             'companyWebsite' => ['required', 'string'],
             'companySize' => ['nullable', 'integer'],
-            'phoneNumber' => ['required', 'string','unique:users'],
+            'phoneNumber' => ['required', 'string', 'unique:companies,phone_number'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'evaluatingWebsite' => ['required'],
-            'role' =>  ['required'],
+            'role' => ['required'],
             'password' => ['required', 'string', 'min:6'],
         ]);
-        if($validator->fails()){
-            return response()->json([ 'status'=> "error", 'message' => $validator->messages()], 400);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => "error", 'message' => $validator->messages()], 400);
         }
+
         try {
+            // Create a new company record
+            $company = Company::create([
+                'name' => $request->companyName,
+                'website' => $request->companyWebsite,
+                'size' => $request->companySize,
+                'phone_number' => $request->phoneNumber,
+                'evaluating_website' => $request->evaluatingWebsite,
+            ]);
+
+            // Create the user record and associate it with the company
             $user = User::create([
-                'companyName' => $request->companyName,
-                'companyWebsite' => $request->companyWebsite,
-                'companySize' => $request->companySize,
-                'phoneNumber' => $request->phoneNumber,
+                'company_id' => $company->id, // Store the company_id in the user table
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
                 'email' => $request->email,
                 'role' => $request->role,
-                'evaluatingWebsite' => json_encode($request->evaluatingWebsite),
                 'is_active' => 1,
                 'password' => Hash::make($request->password),
             ]);
-            return response()->json([ 'status'=> "success", 'data' => $user], 200);
-        } catch (\Exception $exp) {
-            return response()->json(['status'=> "error", 'message' => $exp->getMessage()], 400);
-        }
 
+            return new UserResource($user);
+        } catch (\Exception $exp) {
+            return response()->json(['status' => "error", 'message' => $exp->getMessage()], 400);
+        }
     }
 
     /**
@@ -119,14 +144,14 @@ class AuthController extends Controller
         ]);
     }
 
-     /**
+    /**
      * 
      * @return \Illuminate\Http\JsonResponse
      */
     public function me()
     {
         return response()->json([
-            'status'=>"success"
+            'status' => "success"
         ]);
     }
 }

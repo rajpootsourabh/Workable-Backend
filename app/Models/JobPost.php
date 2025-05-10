@@ -10,4 +10,9 @@ class JobPost extends Model
     use HasFactory;
 
     protected $guarded = [];
+
+    public function applications()
+    {
+        return $this->hasMany(CandidateApplication::class, 'job_post_id');
+    }
 }

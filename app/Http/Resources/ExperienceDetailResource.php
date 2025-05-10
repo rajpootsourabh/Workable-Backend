@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ExperienceDetailResource extends JsonResource
 {
@@ -20,7 +21,7 @@ class ExperienceDetailResource extends JsonResource
         'job' => $this->job,
         'skill' => $this->skill,
         'language' => $this->language,
-        'resume' => $this->resume,
+        'resume' => $this->resume ? asset(Storage::url($this->resume)) : null,
     ];
 }
 

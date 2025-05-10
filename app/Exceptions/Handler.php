@@ -11,20 +11,12 @@ use Illuminate\Auth\AuthenticationException;
 
 class Handler extends ExceptionHandler
 {
-    /**
-     * The list of the inputs that are never flashed to the session on validation exceptions.
-     *
-     * @var array<int, string>
-     */
     protected $dontFlash = [
         'current_password',
         'password',
         'password_confirmation',
     ];
 
-    /**
-     * Register the exception handling callbacks for the application.
-     */
     public function register(): void
     {
         $this->reportable(function (Throwable $e) {
@@ -47,9 +39,16 @@ class Handler extends ExceptionHandler
         }
 
         if ($exception instanceof AuthenticationException) {
-            return response()->json(['error' => 'Authentication failed. Invalid or missing token.'], 401);
+            return $this->unauthenticated($request, $exception);
         }
 
         return parent::render($request, $exception);
+    }
+
+    protected function unauthenticated($request, AuthenticationException $exception)
+    {
+        return response()->json([
+            'error' => 'Authentication required. Please include a valid token in the Authorization header.'
+        ], 401);
     }
 }

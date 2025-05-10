@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class EmployeeResource extends JsonResource
 {
@@ -24,10 +25,11 @@ class EmployeeResource extends JsonResource
             'work_email' => $this->work_email,
             'personal_email' => $this->personal_email,
             'chat_video_call' => $this->chat_video_call,
-            'profile_image' => $this->profile_image,
+           'profile_image' => $this->profile_image ? asset(Storage::url($this->profile_image)) : null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             // Include nested resources
+            'company' => new CompanyResource($this->whenLoaded('company')),
             'job_detail' => new JobDetailResource($this->whenLoaded('jobDetail')),
             'compensation_detail' => new CompensationDetailResource($this->whenLoaded('compensationDetail')),
             'legal_document' => new LegalDocumentResource($this->whenLoaded('legalDocument')),

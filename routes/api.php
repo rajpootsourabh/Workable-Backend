@@ -5,8 +5,8 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\JobPostController;
-use App\Http\Controllers\EmployeeController; // ✅ Added
-use App\Http\Controllers\FileController;
+use App\Http\Controllers\EmployeeController; 
+use App\Http\Controllers\JobApplicationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,7 +34,6 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
         return response()->json(['message' => 'Cache cleared successfully!']);
     });
 
-
     // 🔐 Protected routes (auth:api)
     Route::middleware('auth:api')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
@@ -51,12 +50,30 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
         // 📌 Employee Multi-Step Form Routes
         Route::prefix('employee')->group(function () {
             Route::post('/', [EmployeeController::class, 'storeCompleteEmployee']); // POST /api/v.1/employee
-            Route::get('/all', [EmployeeController::class, 'listCompleteEmployees']); // GET /api/v1/employee/all
-            Route::get('{id}/complete', [EmployeeController::class, 'showCompleteEmployee']);// GET /api/v.1/employee/{id}/complete
-        });        
+            Route::get('/all', [EmployeeController::class, 'listAllEmployees']); // GET /api/v1/employee/all
+            Route::get('{id}/details', [EmployeeController::class, 'getEmployeeDetailsById']); // GET /api/v.1/employee/{id}/complete
+        });
 
-         // 📌 File Route for Serving Private Files
-         Route::get('/file/{fileName}', [FileController::class, 'getFileByName']);
+        // 📌 Job Applications Routes
+        Route::prefix('job-applications')->group(function () {
+            Route::post('/', [JobApplicationController::class, 'applyForJob']); // Apply to a job (creates candidate + application)
+            Route::get('/', [JobApplicationController::class, 'getApplications']); // Admin view of all applications
+        });
 
+        // // 📌 Candidates and Applications
+        // Route::prefix('candidates')->group(function () {
+        //     // Candidate routes
+        //     Route::post('/', [CandidateController::class, 'store']);           // POST /api/v1/candidates
+        //     Route::get('/all', [CandidateController::class, 'index']);         // GET /api/v1/candidates/all
+        //     Route::get('/{id}', [CandidateController::class, 'show']);         // GET /api/v1/candidates/{id}
+        //     Route::put('/{id}', [CandidateController::class, 'update']);       // PUT /api/v1/candidates/{id}
+        //     Route::delete('/{id}', [CandidateController::class, 'destroy']);   // DELETE /api/v1/candidates/{id}
+
+        //     // Applications nested under candidates
+        //     Route::prefix('applications')->group(function () {
+        //         Route::post('/apply', [CandidateApplicationController::class, 'apply']); // POST /api/v1/candidates/applications/apply
+        //         Route::get('/', [CandidateApplicationController::class, 'index']);       // GET /api/v1/candidates/applications
+        //     });
+        // });
     });
 });
