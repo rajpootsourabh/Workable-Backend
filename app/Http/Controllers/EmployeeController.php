@@ -209,6 +209,165 @@ class EmployeeController extends Controller
         }
     }
 
+    // Update employee profile data
+    //  Comments:
+    //  1. Need to fix file re-uploads and handle them
+    //  2. proper response data
+    //  3. efficient error handling
+    //  4. If anything goes wrong, whole transcation should be cancelled
+    //  5. Permission and security while updating
+     
+    public function updateCompleteEmployee(Request $request, $id)
+    { 
+        Log::info('Incoming request data: ', $request->all());
+        Log::info($id);
+        
+        DB::beginTransaction();
+
+        try {
+            $requestData = FormatHelper::camelToSnake($request->all());
+            $user = auth()->user();
+            $allowedRoles = [1, 2, 3, 4];
+
+            if (!in_array($user->role, $allowedRoles)) {
+                return $this->errorResponse('Unauthorized: You do not have permission to update an employee.', 403);
+            }
+
+            $employee = Employee::with([
+                'jobDetail',
+                'compensationDetail',
+                'legalDocument',
+                'experienceDetail',
+                'emergencyContact'
+            ])->findOrFail($id);
+
+            if ($user->company_id !== $employee->company_id) {
+                return $this->errorResponse('Unauthorized: This employee does not belong to your company.', 403);
+            }
+
+            // --- Step 1: Personal Details ---
+            $personalData = $requestData['personal'] ?? [];
+            $validatedEmployee = Validator::make($personalData, [
+                'first_name' => 'required|string',
+                'middle_name' => 'nullable|string',
+                'last_name' => 'required|string',
+                'preferred_name' => 'nullable|string',
+                'country' => 'nullable|string',
+                'address' => 'nullable|string',
+                'gender' => 'nullable|string|in:Male,Female,Others',
+                'birthdate' => 'nullable|date',
+                'marital_status' => 'required|string|in:Single,Married,Common Law,Domestic Partnership',
+                'phone' => 'nullable|string',
+                'work_email' => 'nullable|email',
+                'personal_email' => 'nullable|email',
+                'chat_video_call' => 'nullable|string',
+                'social_media' => 'nullable|string',
+                // 'profile_image' => 'nullable|file|image|max:2048',
+            ])->validate();
+
+            if ($request->hasFile('personal.profileImage')) {
+                $validatedEmployee['profile_image'] = $request->file('personal.profileImage')->store('profiles', 'public');
+            }
+
+            $employee->update($validatedEmployee);
+
+            // --- Step 2: Job Details ---
+            $jobData = $requestData['job'] ?? [];
+            $validatedJob = Validator::make($jobData, [
+                'job_title' => 'required|string',
+                'hire_date' => 'nullable|date',
+                'start_date' => 'required|date',
+                'entity' => 'nullable|string',
+                'department' => 'nullable|string',
+                'effective_date' => 'required|date',
+                'employment_type' => 'required|string|in:Contractor,Full-Time,Part-Time',
+                'workplace' => 'nullable|string|in:Onsite,Remote,Hybrid',
+                'expiry_date' => 'nullable|date',
+                'manager' => 'nullable|string',
+                'work_schedule' => 'nullable|string',
+                'note' => 'nullable|string'
+            ])->validate();
+
+            $employee->jobDetail()->updateOrCreate([], $validatedJob);
+
+            // --- Step 3: Compensation Details ---
+            $compData = $requestData['compensation_benefits'] ?? [];
+            $validatedComp = Validator::make($compData, [
+                'salary_details' => 'nullable|string',
+                'bank_name' => 'required|string',
+                'iban' => 'required|string',
+                'account_number' => 'nullable|string',
+            ])->validate();
+
+            $employee->compensationDetail()->updateOrCreate([], $validatedComp);
+
+            // --- Step 4: Legal Documents ---
+            $legalData = $requestData['legal_documents'] ?? [];
+            $validatedLegal = Validator::make($legalData, [
+                'social_security_number' => 'required|string',
+                'national_id' => 'required|string',
+                'nationality' => 'nullable|string',
+                'citizenship' => 'nullable|string',
+                'passport' => 'nullable|string',
+                'work_visa' => 'nullable|string',
+                'visa_details' => 'nullable|string',
+                'issue_date_national_id' => 'nullable|date',
+                'issue_date_tax_id' => 'nullable|date',
+                'issue_date_s_s_n' => 'nullable|date',
+                'tax_id' => 'required|string',
+                'social_insurance_number' => 'nullable|string',
+                // 'ssn_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+                // 'national_id_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+                // 'tax_id_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+            ])->validate();
+
+            // if ($request->hasFile('legalDocuments.ssnFile')) {
+            //     $validatedLegal['ssn_file'] = $request->file('legalDocuments.ssnFile')->store('legal_docs', 'public');
+            // }
+            // if ($request->hasFile('legalDocuments.nationalIdFile')) {
+            //     $validatedLegal['national_id_file'] = $request->file('legalDocuments.nationalIdFile')->store('legal_docs', 'public');
+            // }
+            // if ($request->hasFile('legalDocuments.taxIdFile')) {
+            //     $validatedLegal['tax_id_file'] = $request->file('legalDocuments.taxIdFile')->store('legal_docs', 'public');
+            // }
+
+            $employee->legalDocument()->updateOrCreate([], $validatedLegal);
+
+            // --- Step 5: Experience ---
+            $expData = $requestData['experience'] ?? [];
+            $validatedExperience = Validator::make($expData, [
+                'skill' => 'nullable|string',
+                'job' => 'nullable|string',
+                'language' => 'nullable|string',
+                'education' => 'nullable|string',
+                // 'resume' => 'nullable|file|mimes:pdf,doc,docx|max:2048',
+            ])->validate();
+
+            // if ($request->hasFile('experience.resume')) {
+            //     $validatedExperience['resume'] = $request->file('experience.resume')->store('resumes', 'public');
+            // }
+
+            $employee->experienceDetail()->updateOrCreate([], $validatedExperience);
+
+            // --- Step 6: Emergency Contact ---
+            $emergencyData = $requestData['emergency'] ?? [];
+            $validatedEmergency = Validator::make($emergencyData, [
+                'contact_name' => 'nullable|string',
+                'contact_phone' => 'nullable|string',
+            ])->validate();
+
+            $employee->emergencyContact()->updateOrCreate([], $validatedEmergency);
+
+            DB::commit();
+
+            return $this->successResponse(['employee_id' => $employee->id], 'Employee details updated successfully!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return $this->errorResponse('Update failed: ' . $e->getMessage(), 500);
+        }
+    }
+
+
 
     // Get by emplopyee id (specific-employee)
     public function getEmployeeDetailsById($id)

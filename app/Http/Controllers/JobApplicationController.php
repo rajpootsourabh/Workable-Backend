@@ -47,7 +47,7 @@ class JobApplicationController extends Controller
         ]);
 
         // Log::info('Request data validated', ['validated' => $validated]);
-
+        
         // Add company_id if not provided in the request
         $validated['company_id'] = $validated['company_id'] ?? $companyId;
         // Log::info('Company ID added to validated data', ['company_id' => $validated['company_id']]);

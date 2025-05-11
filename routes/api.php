@@ -50,6 +50,7 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
         // 📌 Employee Multi-Step Form Routes
         Route::prefix('employee')->group(function () {
             Route::post('/', [EmployeeController::class, 'storeCompleteEmployee']); // POST /api/v.1/employee
+            Route::put('/{id}', [EmployeeController::class, 'updateCompleteEmployee']); // PUT /api/v1/employee/{id}
             Route::get('/all', [EmployeeController::class, 'listAllEmployees']); // GET /api/v1/employee/all
             Route::get('{id}/details', [EmployeeController::class, 'getEmployeeDetailsById']); // GET /api/v.1/employee/{id}/complete
         });
