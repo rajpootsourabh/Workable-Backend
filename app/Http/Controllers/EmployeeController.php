@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\FormatHelper;
 use App\Http\Resources\EmployeeResource;
+use App\Mail\EmployeeNotificationMail;
 use Illuminate\Http\Request;
 use App\Models\Employee;
 use App\Models\JobDetail;
@@ -11,13 +12,15 @@ use App\Models\CompensationDetail;
 use App\Models\LegalDocument;
 use App\Models\ExperienceDetail;
 use App\Models\EmergencyContact;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use App\Traits\ApiResponse;
-
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 class EmployeeController extends Controller
 {
@@ -185,6 +188,38 @@ class EmployeeController extends Controller
 
             $employee->emergencyContact()->create($validatedEmergency);
 
+
+            // ✅ INSERT THIS BLOCK BEFORE DB::commit()
+
+            // Generate a temporary password
+            $tempPassword = Str::random(10);
+
+            // Create a user account for the employee
+            $userAccount = User::create([
+                'company_id'  => $employee->company_id,
+                'employee_id' => $employee->id,
+                'email'       => $employee->work_email ?? $employee->personal_email,
+                'password'    => Hash::make($tempPassword),
+                'role'        => 5, // Set correct role ID (e.g., 5 = Employee, adjust as needed)
+            ]);
+
+            // Prepare welcome email data
+            $emailData = [
+                'name'            => $employee->first_name . ' ' . $employee->last_name,
+                'email'           => $userAccount->email,
+                'temp_password'   => $tempPassword,
+                'it_support_email' => 'itsupport@bipani.co',
+                'sender_name'     => 'Anwar Kazi',
+                'sender_position' => 'CEO',
+                'company_name'    => 'Bipani',
+                'contact_info'    => 'contact@bipani.co | +91-1234567890',
+            ];
+
+            // Send welcome email
+            if (!empty($emailData['email'])) {
+                Mail::to($emailData['email'])->send(new \App\Mail\EmployeeNotificationMail($emailData));
+            }
+
             DB::commit();
 
             return $this->successResponse(
@@ -216,12 +251,12 @@ class EmployeeController extends Controller
     //  3. efficient error handling
     //  4. If anything goes wrong, whole transcation should be cancelled
     //  5. Permission and security while updating
-     
+
     public function updateCompleteEmployee(Request $request, $id)
-    { 
+    {
         Log::info('Incoming request data: ', $request->all());
         Log::info($id);
-        
+
         DB::beginTransaction();
 
         try {

@@ -108,7 +108,7 @@
       <p>Your employee account has been successfully created. Below are your login credentials and a link to get started:</p>
 
       <div class="credentials">
-        🌐 <strong>Website:</strong> <a href="https://bipani.co/login">https://bipani.co/login</a><br/>
+        🌐 <strong>Website:</strong> <a href="https://bipani.com/signin">https://bipani.com/signin</a><br/>
         📧 <strong>Email ID:</strong> {{ $data['email'] }}<br/>
         🔑 <strong>Temporary Password:</strong> {{ $data['temp_password'] }}
       </div>
