@@ -25,4 +25,23 @@ class CandidateApplication extends Model
     {
         return $this->belongsTo(JobPost::class, 'job_post_id');
     }
+
+    public function logs()
+    {
+        return $this->hasMany(CandidateApplicationLog::class);
+    }
+    public function comments()
+    {
+        return $this->hasMany(CandidateApplicationComment::class);
+    }
+
+    public function communications()
+    {
+        return $this->hasMany(CandidateApplicationCommunication::class);
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(CandidateApplicationReview::class);
+    }
 }

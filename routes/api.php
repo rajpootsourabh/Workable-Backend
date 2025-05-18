@@ -1,12 +1,17 @@
 <?php
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CandidateApplicationCommentController;
+use App\Http\Controllers\CandidateApplicationCommunicationController;
+use App\Http\Controllers\CandidateApplicationLogController;
+use App\Http\Controllers\CandidateApplicationReviewController;
 use App\Http\Controllers\JobPostController;
-use App\Http\Controllers\EmployeeController; 
+use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\JobApplicationController;
+use App\Http\Controllers\JobApplicationStatsController;
+use App\Http\Controllers\MailController;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,7 +23,6 @@ use App\Http\Controllers\JobApplicationController;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
-
 
 
 Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
@@ -57,24 +61,38 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
 
         // 📌 Job Applications Routes
         Route::prefix('job-applications')->group(function () {
+            // 🔽 Core Application actions
             Route::post('/', [JobApplicationController::class, 'applyForJob']); // Apply to a job (creates candidate + application)
             Route::get('/', [JobApplicationController::class, 'getApplications']); // Admin view of all applications
+             Route::get('/stats', [JobApplicationStatsController::class, 'getApplicationCountsByStage']);
+            Route::get('/{applicationId}', [JobApplicationController::class, 'getApplicationById']);
+            // Only this PATCH route uses camel.to.snake middleware
+            Route::patch('/{applicationId}', [JobApplicationController::class, 'updateCandidateApplication'])
+                ->middleware('camel.to.snake');
+
+            // 🗨️ Comments
+            Route::post('/{applicationId}/comments', [CandidateApplicationCommentController::class, 'addComment'])
+                ->middleware('camel.to.snake');
+            Route::get('/{applicationId}/comments', [CandidateApplicationCommentController::class, 'listComments']);
+
+            // ✉️ Communications
+            Route::post('/{applicationId}/communications', [CandidateApplicationCommunicationController::class, 'sendCommunication'])
+                ->middleware('camel.to.snake');
+            Route::get('/{applicationId}/communications', [CandidateApplicationCommunicationController::class, 'getCommunications']);
+
+            // 📝 Reviews
+            Route::post('/{applicationId}/reviews', [CandidateApplicationReviewController::class, 'addReview'])
+                ->middleware('camel.to.snake');
+            Route::get('/{applicationId}/reviews', [CandidateApplicationReviewController::class, 'getReviews']);
+
+            // 🔁 Logs
+            Route::post('/{applicationId}/log-stage-change', [CandidateApplicationLogController::class, 'logStageChange'])
+                ->middleware('camel.to.snake');
+            Route::get('/{applicationId}/logs', [CandidateApplicationLogController::class, 'getLogs']);
+
         });
 
-        // // 📌 Candidates and Applications
-        // Route::prefix('candidates')->group(function () {
-        //     // Candidate routes
-        //     Route::post('/', [CandidateController::class, 'store']);           // POST /api/v1/candidates
-        //     Route::get('/all', [CandidateController::class, 'index']);         // GET /api/v1/candidates/all
-        //     Route::get('/{id}', [CandidateController::class, 'show']);         // GET /api/v1/candidates/{id}
-        //     Route::put('/{id}', [CandidateController::class, 'update']);       // PUT /api/v1/candidates/{id}
-        //     Route::delete('/{id}', [CandidateController::class, 'destroy']);   // DELETE /api/v1/candidates/{id}
-
-        //     // Applications nested under candidates
-        //     Route::prefix('applications')->group(function () {
-        //         Route::post('/apply', [CandidateApplicationController::class, 'apply']); // POST /api/v1/candidates/applications/apply
-        //         Route::get('/', [CandidateApplicationController::class, 'index']);       // GET /api/v1/candidates/applications
-        //     });
-        // });
+         // 📧 Mail Route
+        Route::post('/send-employee-mail', [MailController::class, 'sendEmployeeEmail']);
     });
 });

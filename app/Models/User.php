@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Tymon\JWTAuth\Contracts\JWTSubject;
+
 class User extends Authenticatable implements JWTSubject
 {
     use HasApiTokens, HasFactory, Notifiable;
@@ -65,5 +66,13 @@ class User extends Authenticatable implements JWTSubject
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+     /**
+     * Relationship: Each user is an employee
+     */
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
     }
 }

@@ -43,11 +43,11 @@ class JobApplicationController extends Controller
             'source_id' => 'nullable|integer|exists:sources,id', // Make source_id nullable and check existence
             'company_id' => 'nullable|integer|exists:companies,id', // Make company_id nullable
             'job_id' => 'nullable|exists:job_posts,id', // Make job_id nullable and check existence
-            'status' => 'nullable|in:Applied,Screening,Interviewing,Offer,Hired,Rejected',
+            'status' => 'nullable|in:Active,Rejected',
         ]);
 
         // Log::info('Request data validated', ['validated' => $validated]);
-        
+
         // Add company_id if not provided in the request
         $validated['company_id'] = $validated['company_id'] ?? $companyId;
         // Log::info('Company ID added to validated data', ['company_id' => $validated['company_id']]);
@@ -75,7 +75,7 @@ class JobApplicationController extends Controller
         $application = CandidateApplication::create([
             'candidate_id' => $candidate->id,
             'job_post_id' => $validated['job_id'],
-            'status' => $validated['status'] ?? 'Applied',
+            // 'status' => $validated['status'] ?? 'Active',
         ]);
         // Log::info('Application created', ['application' => $application]);
 
@@ -85,6 +85,89 @@ class JobApplicationController extends Controller
             201
         );
     }
+
+    public function updateCandidateApplication(Request $request, $applicationId)
+    {
+        // Find the application with candidate
+        $application = CandidateApplication::with('candidate')->findOrFail($applicationId);
+
+        // Validate incoming fields - all nullable for partial update
+        $validated = $request->validate([
+            // Candidate fields (all nullable)
+            'first_name' => 'sometimes|string|max:255',
+            'last_name' => 'sometimes|string|max:255',
+            'designation' => 'sometimes|nullable|string|max:255',
+            'experience' => 'sometimes|nullable|numeric|min:0|max:99.9',
+            'phone' => 'sometimes|nullable|string|max:20',
+            'location' => 'sometimes|string|max:255',
+            'current_ctc' => 'sometimes|nullable|numeric|min:0',
+            'expected_ctc' => 'sometimes|nullable|numeric|min:0',
+            'profile_pic' => 'sometimes|nullable|file|mimes:jpg,jpeg,png|max:2048',
+            'resume' => 'sometimes|nullable|file|mimes:pdf,doc,docx|max:5120',
+            'source_id' => 'sometimes|nullable|integer|exists:sources,id',
+            'company_id' => 'sometimes|nullable|integer|exists:companies,id',
+
+            // Application fields
+            'status' => 'sometimes|in:Applied,Screening,Interviewing,Offer,Hired,Rejected',
+        ]);
+
+        // Update candidate fields if provided
+        $candidate = $application->candidate;
+
+        $candidateFields = [
+            'first_name',
+            'last_name',
+            'designation',
+            'experience',
+            'phone',
+            'location',
+            'current_ctc',
+            'expected_ctc',
+            'source_id',
+            'company_id'
+        ];
+
+        foreach ($candidateFields as $field) {
+            if ($request->has($field)) {
+                $candidate->$field = $validated[$field];
+            }
+        }
+
+        // Handle profile_pic upload
+        if ($request->hasFile('profile_pic')) {
+            // Optionally delete old file here before storing new
+            $candidate->profile_pic = $request->file('profile_pic')->storeAs(
+                'candidates/profile_pics',
+                uniqid() . '.' . $request->file('profile_pic')->extension(),
+                'public'
+            );
+        }
+
+        // Handle resume upload
+        if ($request->hasFile('resume')) {
+            // Optionally delete old file here before storing new
+            $candidate->resume = $request->file('resume')->storeAs(
+                'candidates/resumes',
+                uniqid() . '.' . $request->file('resume')->extension(),
+                'public'
+            );
+        }
+
+        $candidate->save();
+
+        // Update application fields if provided
+        if ($request->has('status')) {
+            $application->status = $validated['status'];
+        }
+
+        $application->save();
+
+        return $this->successResponse(
+            new JobApplicationResource($application->fresh()), // fresh to reload updated data
+            'Application updated successfully'
+        );
+    }
+
 
     /**
      * Get all job applications with associated candidate and job details.
@@ -150,5 +233,64 @@ class JobApplicationController extends Controller
         });
 
         return $this->successResponse($formattedApplications, 'Job applications fetched successfully');
+    }
+
+    public function getApplicationById($applicationId)
+    {
+        $application = CandidateApplication::with(['candidate', 'jobPost'])->findOrFail($applicationId);
+
+        $formattedApplication = [
+            'id' => $application->id,
+            'candidate_id' => $application->candidate_id,
+            'job_post_id' => $application->job_post_id,
+            'status' => $application->status,
+            'applied_at' => $application->created_at->toDateTimeString(),
+            'created_at' => $application->created_at->toIso8601String(),
+            'updated_at' => $application->updated_at->toIso8601String(),
+            'candidate' => [
+                'id' => $application->candidate->id,
+                'company_id' => $application->candidate->company_id,
+                'first_name' => $application->candidate->first_name,
+                'last_name' => $application->candidate->last_name,
+                'designation' => $application->candidate->designation,
+                'experience' => $application->candidate->experience,
+                'phone' => $application->candidate->phone,
+                'location' => $application->candidate->location,
+                'current_ctc' => $application->candidate->current_ctc,
+                'expected_ctc' => $application->candidate->expected_ctc,
+                'profile_pic' => $application->candidate->profile_pic
+                    ? url('storage/' . $application->candidate->profile_pic)
+                    : null,
+                'resume' => $application->candidate->resume,
+                'source_id' => $application->candidate->source_id,
+                'created_at' => $application->candidate->created_at->toIso8601String(),
+                'updated_at' => $application->candidate->updated_at->toIso8601String(),
+            ],
+            'job_post' => [
+                'id' => $application->jobPost->id,
+                'job_title' => $application->jobPost->job_title,
+                'job_code' => $application->jobPost->job_code,
+                'job_location' => $application->jobPost->job_location,
+                'job_workplace' => $application->jobPost->job_workplace,
+                'office_location' => $application->jobPost->office_location,
+                'description' => $application->jobPost->description,
+                'company_industry' => $application->jobPost->company_industry,
+                'job_function' => $application->jobPost->job_function,
+                'employment_type' => $application->jobPost->employment_type,
+                'experience' => $application->jobPost->experience,
+                'education' => $application->jobPost->education,
+                'keywords' => $application->jobPost->keywords,
+                'job_department' => $application->jobPost->job_department,
+                'from_salary' => $application->jobPost->from_salary,
+                'to_salary' => $application->jobPost->to_salary,
+                'currency' => $application->jobPost->currency,
+                'create_by' => $application->jobPost->create_by,
+                'update_by' => $application->jobPost->update_by,
+                'created_at' => $application->jobPost->created_at->toIso8601String(),
+                'updated_at' => $application->jobPost->updated_at->toIso8601String(),
+            ]
+        ];
+
+        return $this->successResponse($formattedApplication, 'Application fetched successfully');
     }
 }

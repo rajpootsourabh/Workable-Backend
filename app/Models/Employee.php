@@ -58,9 +58,15 @@ class Employee extends Model
         return $this->hasOne(EmergencyContact::class, 'employee_id', 'id');
     }
 
-     // Company Relationship: Employee belongs to a Company
-     public function company()
-     {
-         return $this->belongsTo(Company::class, 'company_id', 'id');
-     }
+    // Company Relationship: Employee belongs to a Company
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id', 'id');
+    }
+
+     // User Relationship: Employee belongs to a User
+    public function user()
+    {
+        return $this->hasOne(User::class);
+    }
 }
