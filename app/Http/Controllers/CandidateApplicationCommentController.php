@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\NewCommentNotificationMail;
+use App\Models\Candidate;
+use App\Models\CandidateApplication;
 use App\Models\CandidateApplicationComment;
 use Illuminate\Http\Request;
 use App\Traits\ApiResponse;
+use Illuminate\Support\Facades\Mail;
 
 class CandidateApplicationCommentController extends Controller
 {
@@ -16,17 +20,44 @@ class CandidateApplicationCommentController extends Controller
             'comment' => 'required|string',
         ]);
 
-        // Get authenticated user ID as the commenter
         $validated['commented_by'] = auth()->id();
         $validated['candidate_application_id'] = $candidateApplicationId;
 
         try {
             $comment = CandidateApplicationComment::create($validated);
-            return $this->successResponse($comment, 'Comment added successfully', 201);
+
+            // Get the candidate ID from candidate_applications
+            $application = CandidateApplication::findOrFail($candidateApplicationId);
+            $candidate = Candidate::findOrFail($application->candidate_id);
+
+            // Temporary fallback email
+            $candidateEmail = 'sourabh.testenvironment@gmail.com';
+
+            // Get full name of the commenter (employee of the user)
+            $employee = auth()->user()->employee;
+            $commenterName = $employee
+                ? trim($employee->first_name . ' ' . $employee->last_name)
+                : 'Recruiter';
+
+            // Email data
+            $data = [
+                'candidate_name' => $candidate->first_name . ' ' . $candidate->last_name,
+                'commenter_name' => $commenterName,
+                'comment_text' => $validated['comment'],
+                'login_link' => "https://bipani.com/signin",
+                'sender_name' => auth()->user()->name ?? 'Recruitment Team',
+                'company_name' => 'Your Company Name',
+            ];
+
+            // Send email
+            Mail::to($candidateEmail)->send(new NewCommentNotificationMail($data));
+
+            return $this->successResponse($comment, 'Comment added and email sent.', 201);
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to add comment', 500, ['exception' => $e->getMessage()]);
         }
     }
+
 
     public function listComments($candidateApplicationId)
     {

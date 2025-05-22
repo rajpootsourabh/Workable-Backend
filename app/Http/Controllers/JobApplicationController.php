@@ -10,6 +10,7 @@ use App\Models\CandidateApplication;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Models\Company;
+use App\Models\Stage;
 use App\Traits\ApiResponse;
 
 class JobApplicationController extends Controller
@@ -244,6 +245,7 @@ class JobApplicationController extends Controller
             'candidate_id' => $application->candidate_id,
             'job_post_id' => $application->job_post_id,
             'status' => $application->status,
+            'current_stage' => $application->stage_id,
             'applied_at' => $application->created_at->toDateTimeString(),
             'created_at' => $application->created_at->toIso8601String(),
             'updated_at' => $application->updated_at->toIso8601String(),
@@ -293,4 +295,44 @@ class JobApplicationController extends Controller
 
         return $this->successResponse($formattedApplication, 'Application fetched successfully');
     }
+
+
+    // public function moveToNextStage($applicationId)
+    // {
+    //     $application = CandidateApplication::findOrFail($applicationId);
+    //     $currentStage = Stage::find($application->stage_id);
+
+    //     $nextStage = Stage::where('id', '>', $currentStage->id)->orderBy('id')->first();
+
+    //     if ($nextStage) {
+    //         $application->stage_id = $nextStage->id;
+    //         $application->save();
+
+    //         return response()->json([
+    //             'message' => 'Moved to next stage',
+    //             'new_stage' => $nextStage->name,
+    //         ]);
+    //     }
+
+    //     return response()->json(['message' => 'Already at final stage'], 400);
+    // }
+
+
+    // public function setStage(Request $request, $applicationId)
+    // {
+    //     $stageId = $request->input('stage_id');
+
+    //     if (!Stage::find($stageId)) {
+    //         return response()->json(['error' => 'Invalid stage ID'], 400);
+    //     }
+
+    //     $application = CandidateApplication::findOrFail($applicationId);
+    //     $application->stage_id = $stageId;
+    //     $application->save();
+
+    //     return response()->json([
+    //         'message' => 'Stage updated successfully',
+    //         'application' => $application,
+    //     ]);
+    // }
 }

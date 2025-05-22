@@ -44,4 +44,9 @@ class CandidateApplication extends Model
     {
         return $this->hasMany(CandidateApplicationReview::class);
     }
+
+    public function stage()
+    {
+        return $this->belongsTo(Stage::class);
+    }
 }

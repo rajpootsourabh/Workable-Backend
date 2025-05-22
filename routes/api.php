@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -7,6 +8,7 @@ use App\Http\Controllers\CandidateApplicationCommentController;
 use App\Http\Controllers\CandidateApplicationCommunicationController;
 use App\Http\Controllers\CandidateApplicationLogController;
 use App\Http\Controllers\CandidateApplicationReviewController;
+use App\Http\Controllers\CandidateApplicationStageController;
 use App\Http\Controllers\JobPostController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\JobApplicationController;
@@ -64,8 +66,15 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             // 🔽 Core Application actions
             Route::post('/', [JobApplicationController::class, 'applyForJob']); // Apply to a job (creates candidate + application)
             Route::get('/', [JobApplicationController::class, 'getApplications']); // Admin view of all applications
-             Route::get('/stats', [JobApplicationStatsController::class, 'getApplicationCountsByStage']);
+            Route::get('/stats', [JobApplicationStatsController::class, 'getApplicationCountsByStage']);
+            
+            // ✅ Stage Pipeline APIs
+            Route::post('/{applicationId}/next-stage', [CandidateApplicationStageController::class, 'moveToNextStage']);
+            Route::post('/{applicationId}/set-stage', [CandidateApplicationStageController::class, 'setStage']);
+
             Route::get('/{applicationId}', [JobApplicationController::class, 'getApplicationById']);
+
+            
             // Only this PATCH route uses camel.to.snake middleware
             Route::patch('/{applicationId}', [JobApplicationController::class, 'updateCandidateApplication'])
                 ->middleware('camel.to.snake');
@@ -89,10 +98,9 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::post('/{applicationId}/log-stage-change', [CandidateApplicationLogController::class, 'logStageChange'])
                 ->middleware('camel.to.snake');
             Route::get('/{applicationId}/logs', [CandidateApplicationLogController::class, 'getLogs']);
-
         });
 
-         // 📧 Mail Route
+        // 📧 Mail Route
         Route::post('/send-employee-mail', [MailController::class, 'sendEmployeeEmail']);
     });
 });

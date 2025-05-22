@@ -5,12 +5,16 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
+use App\Mail\CompanyWelcomeMail;
+use App\Mail\EmployeeNotificationMail;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class AuthController extends Controller
 {
@@ -80,6 +84,9 @@ class AuthController extends Controller
         }
 
         try {
+            // Wrap DB operations in a transaction for rollback on failure
+            DB::beginTransaction();
+
             // Create a new company record
             $company = Company::create([
                 'name' => $request->companyName,
@@ -89,19 +96,34 @@ class AuthController extends Controller
                 'evaluating_website' => $request->evaluatingWebsite,
             ]);
 
-            // Create the user record and associate it with the company
+            // Create the user and associate with company
             $user = User::create([
-                'company_id' => $company->id, // Store the company_id in the user table
-                'first_name' => $request->first_name,
-                'last_name' => $request->last_name,
+                'company_id' => $company->id,
+                // 'first_name' => $request->first_name,
+                // 'last_name' => $request->last_name,
                 'email' => $request->email,
                 'role' => $request->role,
                 'is_active' => 1,
                 'password' => Hash::make($request->password),
             ]);
 
+            DB::commit(); // Only now commit DB changes
+
+            // Send welcome email only after successful DB commit
+
+            $data = [
+                'company_name' => $request->companyName,
+                'email' => $user->email,
+                'password' => $request->password,
+                'role' => 'Admin',
+            ];
+
+            Mail::to($data['email'])->send(new CompanyWelcomeMail($data));
+
             return new UserResource($user);
         } catch (\Exception $exp) {
+            DB::rollBack(); // Revert company/user creation on failure
+            Log::error('Registration failed: ' . $exp->getMessage());
             return response()->json(['status' => "error", 'message' => $exp->getMessage()], 400);
         }
     }
