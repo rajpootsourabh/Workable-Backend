@@ -58,13 +58,13 @@ class JobApplicationController extends Controller
         // Handle file uploads and store the file names
         if ($request->hasFile('profile_pic')) {
             // Log::info('Profile pic found, storing file');
-            $validated['profile_pic'] = $request->file('profile_pic')->storeAs('candidates/profile_pics', uniqid() . '.' . $request->file('profile_pic')->extension(), 'public');
+            $validated['profile_pic'] = $request->file('profile_pic')->storeAs('candidates/profile_pics', uniqid() . '.' . $request->file('profile_pic')->extension(), 'private');
             // Log::info('Profile pic stored', ['profile_pic' => $validated['profile_pic']]);
         }
 
         if ($request->hasFile('resume')) {
             // Log::info('Resume found, storing file');
-            $validated['resume'] = $request->file('resume')->storeAs('candidates/resumes', uniqid() . '.' . $request->file('resume')->extension(), 'public');
+            $validated['resume'] = $request->file('resume')->storeAs('candidates/resumes', uniqid() . '.' . $request->file('resume')->extension(), 'private');
             // Log::info('Resume stored', ['resume' => $validated['resume']]);
         }
 
@@ -145,7 +145,7 @@ class JobApplicationController extends Controller
             $candidate->profile_pic = $request->file('profile_pic')->storeAs(
                 'candidates/profile_pics',
                 uniqid() . '.' . $request->file('profile_pic')->extension(),
-                'public'
+                'private'
             );
         }
 
@@ -155,7 +155,7 @@ class JobApplicationController extends Controller
             $candidate->resume = $request->file('resume')->storeAs(
                 'candidates/resumes',
                 uniqid() . '.' . $request->file('resume')->extension(),
-                'public'
+                'private'
             );
         }
 
@@ -182,8 +182,21 @@ class JobApplicationController extends Controller
     {
         $applications = CandidateApplication::with(['candidate', 'jobPost'])->get();
 
-        // Format the data as needed
-        $formattedApplications = $applications->map(function ($application) {
+        // Reusable closure for file URL generation
+        $generateFileUrl = function (?string $filePath) {
+            if (!$filePath) {
+                return null;
+            }
+
+            // Encode path safely
+            $encodedPath = implode('/', array_map('rawurlencode', explode('/', $filePath)));
+
+            // Prefix matches your api.php route group
+            return url('api/v.1/files/' . $encodedPath);
+        };
+
+        // Format response
+        $formattedApplications = $applications->map(function ($application) use ($generateFileUrl) {
             return [
                 'id' => $application->id,
                 'candidate_id' => $application->candidate_id,
@@ -205,11 +218,8 @@ class JobApplicationController extends Controller
                     'location' => $application->candidate->location,
                     'current_ctc' => $application->candidate->current_ctc,
                     'expected_ctc' => $application->candidate->expected_ctc,
-                    'profile_pic' => $application->candidate->profile_pic
-                        ? url('storage/' . $application->candidate->profile_pic)  // Return the full URL
-                        : null,
-
-                    'resume' => $application->candidate->resume,
+                    'profile_pic' => $generateFileUrl($application->candidate->profile_pic),
+                    'resume' => $generateFileUrl($application->candidate->resume),
                     'source_id' => $application->candidate->source_id,
                     'created_at' => $application->candidate->created_at->toIso8601String(),
                     'updated_at' => $application->candidate->updated_at->toIso8601String(),
@@ -243,9 +253,25 @@ class JobApplicationController extends Controller
         return $this->successResponse($formattedApplications, 'Job applications fetched successfully');
     }
 
+
     public function getApplicationById($applicationId)
     {
         $application = CandidateApplication::with(['candidate', 'jobPost'])->findOrFail($applicationId);
+
+        $candidate = $application->candidate;
+
+        // Helper to generate file URLs using your new FileController route
+        $generateFileUrl = function (?string $filePath) {
+            if (!$filePath) {
+                return null;
+            }
+
+            // Encode path to safely use in URL
+            $encodedPath = implode('/', array_map('rawurlencode', explode('/', $filePath)));
+
+            // Adjusted to match actual route prefix
+            return url('api/v.1/files/' . $encodedPath);
+        };
 
         $formattedApplication = [
             'id' => $application->id,
@@ -257,25 +283,23 @@ class JobApplicationController extends Controller
             'created_at' => $application->created_at->toIso8601String(),
             'updated_at' => $application->updated_at->toIso8601String(),
             'candidate' => [
-                'id' => $application->candidate->id,
-                'company_id' => $application->candidate->company_id,
-                'first_name' => $application->candidate->first_name,
-                'last_name' => $application->candidate->last_name,
-                'designation' => $application->candidate->designation,
-                'experience' => $application->candidate->experience,
-                'phone' => $application->candidate->phone,
-                'email' => $application->candidate->email,
-                'country' => $application->candidate->country,
-                'location' => $application->candidate->location,
-                'current_ctc' => $application->candidate->current_ctc,
-                'expected_ctc' => $application->candidate->expected_ctc,
-                'profile_pic' => $application->candidate->profile_pic
-                    ? url('storage/' . $application->candidate->profile_pic)
-                    : null,
-                'resume' => $application->candidate->resume,
-                'source_id' => $application->candidate->source_id,
-                'created_at' => $application->candidate->created_at->toIso8601String(),
-                'updated_at' => $application->candidate->updated_at->toIso8601String(),
+                'id' => $candidate->id,
+                'company_id' => $candidate->company_id,
+                'first_name' => $candidate->first_name,
+                'last_name' => $candidate->last_name,
+                'designation' => $candidate->designation,
+                'experience' => $candidate->experience,
+                'phone' => $candidate->phone,
+                'email' => $candidate->email,
+                'country' => $candidate->country,
+                'location' => $candidate->location,
+                'current_ctc' => $candidate->current_ctc,
+                'expected_ctc' => $candidate->expected_ctc,
+                'profile_pic' => $generateFileUrl($candidate->profile_pic),
+                'resume' => $generateFileUrl($candidate->resume),
+                'source_id' => $candidate->source_id,
+                'created_at' => $candidate->created_at->toIso8601String(),
+                'updated_at' => $candidate->updated_at->toIso8601String(),
             ],
             'job_post' => [
                 'id' => $application->jobPost->id,
@@ -304,6 +328,7 @@ class JobApplicationController extends Controller
 
         return $this->successResponse($formattedApplication, 'Application fetched successfully');
     }
+
 
 
     public function disqualify(Request $request, $applicationId)

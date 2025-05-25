@@ -11,6 +11,7 @@ use App\Http\Controllers\CandidateApplicationReviewController;
 use App\Http\Controllers\CandidateApplicationStageController;
 use App\Http\Controllers\JobPostController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\FileController;
 use App\Http\Controllers\JobApplicationController;
 use App\Http\Controllers\JobApplicationStatsController;
 use App\Http\Controllers\MailController;
@@ -104,4 +105,7 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
         // 📧 Mail Route
         Route::post('/send-employee-mail', [MailController::class, 'sendEmployeeEmail']);
     });
+
+    // Serve Files
+    Route::get('/files/{path}', [FileController::class, 'show'])->where('path', '.*');
 });
