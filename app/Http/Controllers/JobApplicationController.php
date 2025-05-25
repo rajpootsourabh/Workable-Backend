@@ -36,6 +36,8 @@ class JobApplicationController extends Controller
             'designation' => 'nullable|string|max:255',
             'experience' => 'nullable|numeric|min:0|max:99.9',
             'phone' => 'nullable|string|max:20',
+            'email' => 'required|email|unique:candidates,email',
+            'country' => 'required|string|max:100',
             'location' => 'required|string|max:255',
             'current_ctc' => 'nullable|numeric|min:0',
             'expected_ctc' => 'nullable|numeric|min:0',
@@ -91,6 +93,7 @@ class JobApplicationController extends Controller
     {
         // Find the application with candidate
         $application = CandidateApplication::with('candidate')->findOrFail($applicationId);
+        $candidate = $application->candidate;
 
         // Validate incoming fields - all nullable for partial update
         $validated = $request->validate([
@@ -100,6 +103,8 @@ class JobApplicationController extends Controller
             'designation' => 'sometimes|nullable|string|max:255',
             'experience' => 'sometimes|nullable|numeric|min:0|max:99.9',
             'phone' => 'sometimes|nullable|string|max:20',
+            'email'         => 'sometimes|email|unique:candidates,email,' . $candidate->id,
+            'country'       => 'sometimes|string|max:100',
             'location' => 'sometimes|string|max:255',
             'current_ctc' => 'sometimes|nullable|numeric|min:0',
             'expected_ctc' => 'sometimes|nullable|numeric|min:0',
@@ -195,6 +200,8 @@ class JobApplicationController extends Controller
                     'designation' => $application->candidate->designation,
                     'experience' => $application->candidate->experience,
                     'phone' => $application->candidate->phone,
+                    'email' => $application->candidate->email,
+                    'country' => $application->candidate->country,
                     'location' => $application->candidate->location,
                     'current_ctc' => $application->candidate->current_ctc,
                     'expected_ctc' => $application->candidate->expected_ctc,
@@ -257,6 +264,8 @@ class JobApplicationController extends Controller
                 'designation' => $application->candidate->designation,
                 'experience' => $application->candidate->experience,
                 'phone' => $application->candidate->phone,
+                'email' => $application->candidate->email,
+                'country' => $application->candidate->country,
                 'location' => $application->candidate->location,
                 'current_ctc' => $application->candidate->current_ctc,
                 'expected_ctc' => $application->candidate->expected_ctc,
@@ -296,6 +305,43 @@ class JobApplicationController extends Controller
         return $this->successResponse($formattedApplication, 'Application fetched successfully');
     }
 
+
+    public function disqualify(Request $request, $applicationId)
+    {
+        $request->validate([
+            'note' => 'nullable|string',
+        ]);
+
+        $application = CandidateApplication::findOrFail($applicationId);
+
+        // Avoid duplicate disqualification
+        if ($application->status === 'Rejected') {
+            return response()->json([
+                'message' => 'Candidate is already disqualified.',
+            ], 400);
+        }
+
+        $fromStage = $application->stage_id;
+
+        // Update application status
+        $application->status = 'Rejected';
+        $application->save();
+
+        // Log the disqualification
+        // CandidateApplicationLog::create([
+        //     'candidate_application_id' => $application->id,
+        //     'from_stage' => $fromStage,
+        //     'to_stage' => $fromStage, // stage doesn't change, only status
+        //     'changed_by' => Auth::id(),
+        //     'changed_at' => now(),
+        //     'note' => $request->input('note', 'Disqualified'),
+        // ]);
+
+        return response()->json([
+            'message' => 'Candidate disqualified successfully.',
+            'application' => $application,
+        ]);
+    }
 
     // public function moveToNextStage($applicationId)
     // {

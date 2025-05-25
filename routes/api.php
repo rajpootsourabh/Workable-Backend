@@ -14,6 +14,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\JobApplicationController;
 use App\Http\Controllers\JobApplicationStatsController;
 use App\Http\Controllers\MailController;
+use App\Http\Controllers\SimpleMailController;
 
 /*
 |--------------------------------------------------------------------------
@@ -67,14 +68,14 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::post('/', [JobApplicationController::class, 'applyForJob']); // Apply to a job (creates candidate + application)
             Route::get('/', [JobApplicationController::class, 'getApplications']); // Admin view of all applications
             Route::get('/stats', [JobApplicationStatsController::class, 'getApplicationCountsByStage']);
-            
+
             // ✅ Stage Pipeline APIs
             Route::post('/{applicationId}/next-stage', [CandidateApplicationStageController::class, 'moveToNextStage']);
             Route::post('/{applicationId}/set-stage', [CandidateApplicationStageController::class, 'setStage']);
 
+            Route::post('/{applicationId}/disqualify', [JobApplicationController::class, 'disqualify']);
             Route::get('/{applicationId}', [JobApplicationController::class, 'getApplicationById']);
 
-            
             // Only this PATCH route uses camel.to.snake middleware
             Route::patch('/{applicationId}', [JobApplicationController::class, 'updateCandidateApplication'])
                 ->middleware('camel.to.snake');
@@ -85,7 +86,7 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::get('/{applicationId}/comments', [CandidateApplicationCommentController::class, 'listComments']);
 
             // ✉️ Communications
-            Route::post('/{applicationId}/communications', [CandidateApplicationCommunicationController::class, 'sendCommunication'])
+            Route::post('/communications', [CandidateApplicationCommunicationController::class, 'sendCommunication'])
                 ->middleware('camel.to.snake');
             Route::get('/{applicationId}/communications', [CandidateApplicationCommunicationController::class, 'getCommunications']);
 

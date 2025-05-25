@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 namespace App\Models;
 
@@ -19,6 +19,8 @@ class Candidate extends Model
         'designation',
         'experience',
         'phone',
+        'email',        
+        'country',
         'location',
         'current_ctc',
         'expected_ctc',

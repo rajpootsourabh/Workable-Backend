@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\CandidateApplication;
+use App\Models\CandidateApplicationLog;
 use App\Models\Stage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class CandidateApplicationStageController extends Controller
 {
@@ -34,8 +36,26 @@ class CandidateApplicationStageController extends Controller
         ]);
 
         $application = CandidateApplication::findOrFail($applicationId);
-        $application->stage_id = $request->input('stage_id');
-        $application->save();
+
+        $fromStage = $application->stage_id; // Store the current stage
+        $toStage = $request->input('stage_id');
+
+        // Only log if stage actually changed
+        if ($fromStage != $toStage) {
+            // Update the application stage
+            $application->stage_id = $toStage;
+            $application->save();
+
+            // Log the change
+            CandidateApplicationLog::create([
+                'candidate_application_id' => $application->id,
+                'from_stage' => $fromStage,
+                'to_stage' => $toStage,
+                'changed_by' => Auth::id(), // Ensure user is authenticated
+                'changed_at' => now(),
+                'note' => $request->input('note'), // optional, if you add a note field
+            ]);
+        }
 
         return response()->json([
             'message' => 'Stage updated successfully',
