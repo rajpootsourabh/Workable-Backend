@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\JobPost;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
+
 class JobPostController extends Controller
 {
 
@@ -23,13 +24,20 @@ class JobPostController extends Controller
      */
     public function getJob($id)
     {
-        
-        $job = JobPost::find($id);
+        $job = JobPost::with('company:id,name')->find($id); // Only fetch company id & name
+
         if (!$job) {
-            return response()->json(["status" => "error", 'message' =>"Job not found"], 404);
+            return response()->json(["status" => "error", 'message' => "Job not found"], 404);
         }
-        return response()->json(["status" => "success",'data' => $job]);
+
+        // Replace company object with just the name if you prefer
+        $data = $job->toArray();
+        $data['company_name'] = $data['company']['name'] ?? null;
+        unset($data['company']); // Optional: remove full company object
+
+        return response()->json(["status" => "success", 'data' => $data]);
     }
+
     /**
      * Create a new job.
      */
@@ -42,6 +50,9 @@ class JobPostController extends Controller
             'job_location'    => 'required|string|max:255',
             'job_department'  => 'required|string|max:255',
             'job_function'    => 'required|string|max:255',
+            'job_description' => 'required|string|max:255',
+            'job_requirements' => 'nullable|string',
+            'job_benefits'    => 'nullable|string',
             'employment_type' => 'required|string|max:255',
             'experience'      => 'required|string|max:255',
             'education'       => 'required|string|max:255',
@@ -58,7 +69,10 @@ class JobPostController extends Controller
             'job_workplace'    => $validatedData['job_workplace'],
             'job_location'     => $validatedData['job_location'],
             'job_department'   => $validatedData['job_department'],
+            'requirements'     => $validatedData['job_requirements'],
+            'benefits'         => $validatedData['job_benefits'],
             'job_function'     => $validatedData['job_function'],
+            'description'     => $validatedData['job_description'],
             'employment_type'  => $validatedData['employment_type'],
             'experience'       => $validatedData['experience'],
             'education'        => $validatedData['education'],
@@ -88,7 +102,10 @@ class JobPostController extends Controller
             'job_workplace'   => ['sometimes', Rule::in(['onsite', 'hybrid', 'remote'])],
             'job_location'    => 'sometimes|string|max:255',
             'job_department'  => 'sometimes|string|max:255',
+            'job_description' => 'sometimes|string|max:255',
             'job_function'    => 'sometimes|string|max:255',
+            'job_requirements'    => 'sometimes|string|max:255',
+            'job_benefits'    => 'sometimes|string|max:255',
             'employment_type' => 'sometimes|string|max:255',
             'experience'      => 'sometimes|string|max:255',
             'education'       => 'sometimes|string|max:255',
@@ -105,6 +122,9 @@ class JobPostController extends Controller
             'job_workplace'    => $validatedData['job_workplace'] ?? $job->job_workplace,
             'job_location'     => $validatedData['job_location'] ?? $job->job_location,
             'job_department'   => $validatedData['job_department'] ?? $job->job_department,
+            'description'      => $validatedData['job_description'] ?? $job->description,
+            'requirements' => $validatedData['job_requirements'] ?? $job->requirements,
+            'benefits' => $validatedData['job_benefits'] ?? $job->benefits,
             'job_function'     => $validatedData['job_function'] ?? $job->job_function,
             'employment_type'  => $validatedData['employment_type'] ?? $job->employment_type,
             'experience'       => $validatedData['experience'] ?? $job->experience,
@@ -126,10 +146,10 @@ class JobPostController extends Controller
     {
         $job = JobPost::find($id);
         if (!$job) {
-            return response()->json(["status" => "error",'message' => 'Job not found'], 404);
+            return response()->json(["status" => "error", 'message' => 'Job not found'], 404);
         }
 
         $job->delete();
-        return response()->json(["status" => "success",'message' => 'Job deleted successfully']);
+        return response()->json(["status" => "success", 'message' => 'Job deleted successfully']);
     }
 }

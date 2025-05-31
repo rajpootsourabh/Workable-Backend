@@ -18,6 +18,7 @@ class Candidate extends Model
         'last_name',
         'designation',
         'experience',
+        'education',
         'phone',
         'email',        
         'country',

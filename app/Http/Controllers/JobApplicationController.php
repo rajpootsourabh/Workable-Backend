@@ -10,6 +10,7 @@ use App\Models\CandidateApplication;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Models\Company;
+use App\Models\JobPost;
 use App\Models\Stage;
 use App\Traits\ApiResponse;
 
@@ -34,13 +35,14 @@ class JobApplicationController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'designation' => 'nullable|string|max:255',
-            'experience' => 'nullable|numeric|min:0|max:99.9',
-            'phone' => 'nullable|string|max:20',
+            'experience' => 'required|numeric|min:0|max:99.9',
+            'education' => 'required|string|max:255',
+            'phone' => 'required|string|max:20',
             'email' => 'required|email|unique:candidates,email',
             'country' => 'required|string|max:100',
             'location' => 'required|string|max:255',
             'current_ctc' => 'nullable|numeric|min:0',
-            'expected_ctc' => 'nullable|numeric|min:0',
+            'expected_ctc' => 'required|numeric|min:0',
             'profile_pic' => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
             'resume' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
             'source_id' => 'nullable|integer|exists:sources,id', // Make source_id nullable and check existence
@@ -57,9 +59,9 @@ class JobApplicationController extends Controller
 
         // Handle file uploads and store the file names
         if ($request->hasFile('profile_pic')) {
-            // Log::info('Profile pic found, storing file');
+            Log::info('Profile pic found, storing file');
             $validated['profile_pic'] = $request->file('profile_pic')->storeAs('candidates/profile_pics', uniqid() . '.' . $request->file('profile_pic')->extension(), 'private');
-            // Log::info('Profile pic stored', ['profile_pic' => $validated['profile_pic']]);
+            Log::info('Profile pic stored', ['profile_pic' => $validated['profile_pic']]);
         }
 
         if ($request->hasFile('resume')) {
@@ -256,7 +258,7 @@ class JobApplicationController extends Controller
 
     public function getApplicationById($applicationId)
     {
-        $application = CandidateApplication::with(['candidate', 'jobPost'])->findOrFail($applicationId);
+        $application = CandidateApplication::with(['candidate', 'jobPost.company'])->findOrFail($applicationId);
 
         $candidate = $application->candidate;
 
@@ -304,6 +306,7 @@ class JobApplicationController extends Controller
             'job_post' => [
                 'id' => $application->jobPost->id,
                 'job_title' => $application->jobPost->job_title,
+                'company_name' => optional($application->jobPost->company)->name,
                 'job_code' => $application->jobPost->job_code,
                 'job_location' => $application->jobPost->job_location,
                 'job_workplace' => $application->jobPost->job_workplace,
@@ -314,6 +317,8 @@ class JobApplicationController extends Controller
                 'employment_type' => $application->jobPost->employment_type,
                 'experience' => $application->jobPost->experience,
                 'education' => $application->jobPost->education,
+                'benefits' => $application->jobPost->benefits,
+                'requirements' => $application->jobPost->requirements,
                 'keywords' => $application->jobPost->keywords,
                 'job_department' => $application->jobPost->job_department,
                 'from_salary' => $application->jobPost->from_salary,
@@ -406,4 +411,109 @@ class JobApplicationController extends Controller
     //         'application' => $application,
     //     ]);
     // }
+
+    public function getApplicationsForJob(Request $request, $jobPostId)
+    {
+        $query = CandidateApplication::with(['candidate'])
+            ->where('job_post_id', $jobPostId)
+            ->where('status', 'Active');
+
+        if ($request->filled('location')) {
+            $query->whereHas('candidate', fn($q) => $q->where('location', 'like', '%' . $request->location . '%'));
+        }
+
+        if ($request->filled('experience_min')) {
+            $query->whereHas('candidate', fn($q) => $q->where('experience', '>=', $request->experience_min));
+        }
+
+        if ($request->filled('experience_max')) {
+            $query->whereHas('candidate', fn($q) => $q->where('experience', '<=', $request->experience_max));
+        }
+
+        if ($request->filled('search')) {
+            $query->whereHas('candidate', function ($q) use ($request) {
+                $q->whereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ['%' . $request->search . '%'])
+                    ->orWhere('email', 'like', '%' . $request->search . '%')
+                    ->orWhere('designation', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        // Get current page number requested, default to 1 if missing or invalid
+        $page = max(1, (int) $request->get('page', 1));
+
+        // Paginate with 10 per page
+        $applications = $query->latest()->paginate(10, ['*'], 'page', $page);
+
+        $job = JobPost::findOrFail($jobPostId);
+
+        // If requested page is greater than last page, return empty data arrays
+        if ($page > $applications->lastPage()) {
+            return response()->json([
+                'job' => $job,
+                'job_applications' => [],
+                'candidates' => [],
+                'pagination' => [
+                    'current_page' => $page,
+                    'last_page' => $applications->lastPage(),
+                    'per_page' => $applications->perPage(),
+                    'total' => $applications->total(),
+                ],
+            ]);
+        }
+
+        // Generate file URL helper
+        $generateFileUrl = function (?string $filePath) {
+            if (!$filePath) {
+                return null;
+            }
+
+            $encodedPath = implode('/', array_map('rawurlencode', explode('/', $filePath)));
+            return url('api/v.1/files/' . $encodedPath);
+        };
+
+        // Map simplified job applications info without candidate details
+        $job_application = collect($applications->items())->map(fn($app) => [
+            'id' => $app->id,
+            'applied_at' => $app->applied_at,
+            'status' => $app->status,
+            'stage_id' => $app->stage_id,
+        ]);
+
+        // Collect candidates separately as an array
+        $candidates = collect($applications->items())->map(function ($app) use ($generateFileUrl) {
+            $candidate = $app->candidate;
+            return [
+                'id' => $candidate->id,
+                'company_id' => $candidate->company_id,
+                'first_name' => $candidate->first_name,
+                'last_name' => $candidate->last_name,
+                'designation' => $candidate->designation,
+                'experience' => $candidate->experience,
+                'education' => $candidate->education,
+                'phone' => $candidate->phone,
+                'email' => $candidate->email,
+                'country' => $candidate->country,
+                'location' => $candidate->location,
+                'current_ctc' => $candidate->current_ctc,
+                'expected_ctc' => $candidate->expected_ctc,
+                'profile_pic' => $generateFileUrl($candidate->profile_pic),
+                'resume' => $generateFileUrl($candidate->resume),
+                'source_id' => $candidate->source_id,
+                'created_at' => $candidate->created_at->toIso8601String(),
+                'updated_at' => $candidate->updated_at->toIso8601String(),
+            ];
+        });
+
+        return response()->json([
+            'job' => $job,
+            'job_application' => $job_application,
+            'candidates' => $candidates,
+            'pagination' => [
+                'current_page' => $applications->currentPage(),
+                'last_page' => $applications->lastPage(),
+                'per_page' => $applications->perPage(),
+                'total' => $applications->total(),
+            ],
+        ]);
+    }
 }

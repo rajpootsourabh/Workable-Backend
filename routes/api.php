@@ -69,6 +69,8 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::post('/', [JobApplicationController::class, 'applyForJob']); // Apply to a job (creates candidate + application)
             Route::get('/', [JobApplicationController::class, 'getApplications']); // Admin view of all applications
             Route::get('/stats', [JobApplicationStatsController::class, 'getApplicationCountsByStage']);
+            // 🔽 Filtered applications by job_post_id
+            Route::get('/job/{jobPostId}', [JobApplicationController::class, 'getApplicationsForJob']);
 
             // ✅ Stage Pipeline APIs
             Route::post('/{applicationId}/next-stage', [CandidateApplicationStageController::class, 'moveToNextStage']);

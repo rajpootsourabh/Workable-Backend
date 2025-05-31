@@ -26,4 +26,11 @@ class Company extends Model
     {
         return $this->hasMany(User::class);
     }
+    /**
+     * Relationship: A company can have many job posts.
+     */
+    public function jobPosts()
+    {
+        return $this->hasMany(JobPost::class);
+    }
 }
