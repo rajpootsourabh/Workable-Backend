@@ -43,6 +43,16 @@ class JobPostController extends Controller
      */
     public function createJob(Request $request)
     {
+        $user = Auth::user();
+
+        // Check if the authenticated user has a company_id
+        if (!$user || !$user->company_id) {
+            return response()->json([
+                "status" => "error",
+                "message" => "User must belong to a company to create a job."
+            ], 403);
+        }
+
         $validatedData = $request->validate([
             'job_title'       => 'required|string|max:255',
             'job_code'        => 'required|string|max:255|unique:job_posts,job_code',
@@ -64,6 +74,7 @@ class JobPostController extends Controller
         ]);
 
         JobPost::create([
+            'company_id'       => $user->company_id, // Set from Authenticated User
             'job_title'        => $validatedData['job_title'],
             'job_code'         => $validatedData['job_code'],
             'job_workplace'    => $validatedData['job_workplace'],
@@ -91,10 +102,24 @@ class JobPostController extends Controller
      */
     public function updateJob(Request $request, $id)
     {
+        $user = Auth::user();
+
+        if (!$user || !$user->company_id) {
+            return response()->json([
+                "status" => "error",
+                "message" => "Unauthorized or invalid company."
+            ], 403);
+        }
+
         $job = JobPost::find($id);
         if (!$job) {
             return response()->json(["status" => "error", 'message' => 'Job not found'], 404);
         }
+
+        // Optional: Check if the job belongs to the same company
+        // if ($job->company_id !== $user->company_id) {
+        //     return response()->json(["status" => "error", 'message' => 'You do not have permission to update this job'], 403);
+        // }
 
         $validatedData = $request->validate([
             'job_title'       => 'sometimes|string|max:255',
@@ -117,6 +142,7 @@ class JobPostController extends Controller
         ]);
 
         $job->update([
+            'company_id'       => $user->company_id, // Overwrite with authenticated user's company
             'job_title'        => $validatedData['job_title'] ?? $job->job_title,
             'job_code'         => $validatedData['job_code'] ?? $job->job_code,
             'job_workplace'    => $validatedData['job_workplace'] ?? $job->job_workplace,
