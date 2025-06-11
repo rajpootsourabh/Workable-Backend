@@ -5,14 +5,18 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 
 class JobApplicationStatsController extends Controller
 {
     public function getApplicationCountsByStage(): JsonResponse
     {
+        $user = Auth::user();
+
         // Fetch stage names with their IDs
         $stages = DB::table('stages')->pluck('name', 'id');
 
+        // Restrict to job posts belonging to the user's company
         $results = DB::table('job_posts as jp')
             ->leftJoin('candidate_applications as ca', 'ca.job_post_id', '=', 'jp.id')
             ->select(
@@ -21,6 +25,7 @@ class JobApplicationStatsController extends Controller
                 'ca.stage_id',
                 DB::raw('COUNT(ca.id) as count')
             )
+            ->where('jp.company_id', $user->company_id) // ✅ Restriction added
             ->groupBy('jp.id', 'jp.job_title', 'ca.stage_id')
             ->get();
 

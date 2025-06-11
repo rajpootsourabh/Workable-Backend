@@ -81,9 +81,14 @@ class EmployeeController extends Controller
             ])->validate();
 
             if ($request->hasFile('personal.profileImage')) {
-                // Use store() method which will automatically move the file from the temporary location
-                $validatedEmployee['profile_image'] = $request->file('personal.profileImage')->store('profiles', 'public');
+                $image = $request->file('personal.profileImage');
+                $validatedEmployee['profile_image'] = $image->storeAs(
+                    'profiles',
+                    uniqid('profile_') . '.' . $image->extension(),
+                    'private'
+                );
             }
+
 
             // Add the company_id to the employee data before saving
             $validatedEmployee['company_id'] = $company->id;
@@ -146,14 +151,32 @@ class EmployeeController extends Controller
 
             // Store files if present
             if ($request->hasFile('legalDocuments.ssnFile')) {
-                $validatedLegal['ssn_file'] = $request->file('legalDocuments.ssnFile')->store('legal_docs', 'public');
+                $ssnFile = $request->file('legalDocuments.ssnFile');
+                $validatedLegal['ssn_file'] = $ssnFile->storeAs(
+                    'legal_docs',
+                    uniqid('ssn_') . '.' . $ssnFile->extension(),
+                    'private'
+                );
             }
+
             if ($request->hasFile('legalDocuments.nationalIdFile')) {
-                $validatedLegal['national_id_file'] = $request->file('legalDocuments.nationalIdFile')->store('legal_docs', 'public');
+                $nidFile = $request->file('legalDocuments.nationalIdFile');
+                $validatedLegal['national_id_file'] = $nidFile->storeAs(
+                    'legal_docs',
+                    uniqid('nid_') . '.' . $nidFile->extension(),
+                    'private'
+                );
             }
+
             if ($request->hasFile('legalDocuments.taxIdFile')) {
-                $validatedLegal['tax_id_file'] = $request->file('legalDocuments.taxIdFile')->store('legal_docs', 'public');
+                $taxFile = $request->file('legalDocuments.taxIdFile');
+                $validatedLegal['tax_id_file'] = $taxFile->storeAs(
+                    'legal_docs',
+                    uniqid('tax_') . '.' . $taxFile->extension(),
+                    'private'
+                );
             }
+
 
             // Create related model entry
             $employee->legalDocument()->create($validatedLegal);
@@ -173,8 +196,14 @@ class EmployeeController extends Controller
 
 
             if ($request->hasFile('experience.resume')) {
-                $validatedExperience['resume'] = $request->file('experience.resume')->store('resumes', 'public');
+                $resume = $request->file('experience.resume');
+                $validatedExperience['resume'] = $resume->storeAs(
+                    'resumes',
+                    uniqid('resume_') . '.' . $resume->extension(),
+                    'private'
+                );
             }
+
 
             $employee->experienceDetail()->create($validatedExperience);
 
@@ -301,8 +330,14 @@ class EmployeeController extends Controller
             ])->validate();
 
             if ($request->hasFile('personal.profileImage')) {
-                $validatedEmployee['profile_image'] = $request->file('personal.profileImage')->store('profiles', 'public');
+                $image = $request->file('personal.profileImage');
+                $validatedEmployee['profile_image'] = $image->storeAs(
+                    'profiles',
+                    uniqid('profile_') . '.' . $image->extension(),
+                    'private'
+                );
             }
+
 
             $employee->update($validatedEmployee);
 
@@ -403,7 +438,6 @@ class EmployeeController extends Controller
     }
 
 
-
     // Get by emplopyee id (specific-employee)
     public function getEmployeeDetailsById($id)
     {
@@ -453,7 +487,7 @@ class EmployeeController extends Controller
             }
 
 
-            // Allowed role IDs: Owner = 1, HR = 2, Recruiter = 3, Finance = 4
+            // Allowed role IDs: Owner = 1, HR = 2, Recruiter = 3, Finance = 4, 
             $allowedRoles = [1, 2, 3, 4];
 
             if (!in_array($user->role, $allowedRoles)) {

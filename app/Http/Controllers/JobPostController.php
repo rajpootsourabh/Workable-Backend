@@ -15,8 +15,23 @@ class JobPostController extends Controller
      */
     public function listJobs()
     {
-        $jobs = JobPost::all();
-        return response()->json(["status" => "success", 'data' => $jobs]);
+        $user = Auth::user();
+
+        // Check if the authenticated user has a company_id
+        if (!$user || !$user->company_id) {
+            return response()->json([
+                "status" => "error",
+                "message" => "User must belong to a company to view job listings."
+            ], 403);
+        }
+
+        // Fetch only jobs belonging to the user's company
+        $jobs = JobPost::where('company_id', $user->company_id)->get();
+
+        return response()->json([
+            "status" => "success",
+            "data" => $jobs
+        ]);
     }
 
     /**
@@ -24,18 +39,37 @@ class JobPostController extends Controller
      */
     public function getJob($id)
     {
-        $job = JobPost::with('company:id,name')->find($id); // Only fetch company id & name
+        $user = Auth::user();
 
-        if (!$job) {
-            return response()->json(["status" => "error", 'message' => "Job not found"], 404);
+        // Check if the authenticated user has a company_id
+        if (!$user || !$user->company_id) {
+            return response()->json([
+                "status" => "error",
+                "message" => "User must belong to a company to view the job."
+            ], 403);
         }
 
-        // Replace company object with just the name if you prefer
+        // Find the job and ensure it belongs to the user's company
+        $job = JobPost::with('company:id,name')
+            ->where('company_id', $user->company_id)
+            ->find($id);
+
+        if (!$job) {
+            return response()->json([
+                "status" => "error",
+                "message" => "Job not found or does not belong to your company."
+            ], 404);
+        }
+
+        // Prepare response
         $data = $job->toArray();
         $data['company_name'] = $data['company']['name'] ?? null;
-        unset($data['company']); // Optional: remove full company object
+        unset($data['company']); // Optional
 
-        return response()->json(["status" => "success", 'data' => $data]);
+        return response()->json([
+            "status" => "success",
+            "data" => $data
+        ]);
     }
 
     /**
@@ -116,10 +150,10 @@ class JobPostController extends Controller
             return response()->json(["status" => "error", 'message' => 'Job not found'], 404);
         }
 
-        // Optional: Check if the job belongs to the same company
-        // if ($job->company_id !== $user->company_id) {
-        //     return response()->json(["status" => "error", 'message' => 'You do not have permission to update this job'], 403);
-        // }
+        // Check if the job belongs to the same company
+        if ($job->company_id !== $user->company_id) {
+            return response()->json(["status" => "error", 'message' => 'You do not have permission to update this job'], 403);
+        }
 
         $validatedData = $request->validate([
             'job_title'       => 'sometimes|string|max:255',
@@ -170,12 +204,28 @@ class JobPostController extends Controller
      */
     public function deleteJob($id)
     {
+        $user = Auth::user();
+
+        if (!$user || !$user->company_id) {
+            return response()->json([
+                "status" => "error",
+                "message" => "Unauthorized or invalid company."
+            ], 403);
+        }
+
         $job = JobPost::find($id);
+
         if (!$job) {
-            return response()->json(["status" => "error", 'message' => 'Job not found'], 404);
+            return response()->json(["status" => "error", "message" => "Job not found"], 404);
+        }
+
+        // 🔐 Ensure the job belongs to the authenticated user's company
+        if ($job->company_id !== $user->company_id) {
+            return response()->json(["status" => "error", "message" => "You do not have permission to delete this job"], 403);
         }
 
         $job->delete();
-        return response()->json(["status" => "success", 'message' => 'Job deleted successfully']);
+
+        return response()->json(["status" => "success", "message" => "Job deleted successfully"]);
     }
 }
