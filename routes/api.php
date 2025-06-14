@@ -9,12 +9,16 @@ use App\Http\Controllers\CandidateApplicationCommunicationController;
 use App\Http\Controllers\CandidateApplicationLogController;
 use App\Http\Controllers\CandidateApplicationReviewController;
 use App\Http\Controllers\CandidateApplicationStageController;
+use App\Http\Controllers\CandidateAssignmentController;
+use App\Http\Controllers\CandidateController;
+use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\JobPostController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\JobApplicationController;
 use App\Http\Controllers\JobApplicationStatsController;
 use App\Http\Controllers\MailController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SimpleMailController;
 
 /*
@@ -61,6 +65,7 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::put('/{id}', [EmployeeController::class, 'updateCompleteEmployee']); // PUT /api/v1/employee/{id}
             Route::get('/all', [EmployeeController::class, 'listAllEmployees']); // GET /api/v1/employee/all
             Route::get('{id}/details', [EmployeeController::class, 'getEmployeeDetailsById']); // GET /api/v.1/employee/{id}/complete
+            Route::get('{employeeId}/assignments', [CandidateAssignmentController::class, 'getAssignedCandidatesForEmployee']);
         });
 
         // 📌 Job Applications Routes
@@ -103,6 +108,33 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
                 ->middleware('camel.to.snake');
             Route::get('/{applicationId}/logs', [CandidateApplicationLogController::class, 'getLogs']);
         });
+
+        // 👥 Candidate Assignments
+        Route::prefix('candidate')->group(function () {
+            Route::get('/', [CandidateController::class, 'listCandidates']);
+            // Assign a candidate to an employee
+            Route::post('{candidateId}/assignments', [CandidateAssignmentController::class, 'assign']);
+            // Unassign a candidate from an employee
+            Route::delete('{candidateId}/assignments/{employeeId}', [CandidateAssignmentController::class, 'unassign']);
+            // Get all employees assigned to a candidate
+            Route::get('{candidateId}/assignments', [CandidateAssignmentController::class, 'showAssignments']);
+        });
+
+        // 🏢 Company Profile routes
+        Route::prefix('company')->group(function () {
+            Route::get('/', [CompanyProfileController::class, 'show']);
+            Route::put('/', [CompanyProfileController::class, 'update']);
+            Route::post('/logo', [CompanyProfileController::class, 'uploadLogo']);
+        });
+
+        // ✅ User Profile Routes
+        Route::prefix('auth/profile')->group(function () {
+            Route::get('/', [ProfileController::class, 'getProfile']);
+            Route::put('/', [ProfileController::class, 'updateProfile']);
+            Route::put('/credentials', [ProfileController::class, 'updateCredentials']);
+            Route::post('/upload', [ProfileController::class, 'uploadProfilePicture']);
+        });
+
 
         // 📧 Mail Route
         Route::post('/send-employee-mail', [MailController::class, 'sendEmployeeEmail']);

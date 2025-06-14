@@ -64,9 +64,16 @@ class Employee extends Model
         return $this->belongsTo(Company::class, 'company_id', 'id');
     }
 
-     // User Relationship: Employee belongs to a User
+    // User Relationship: Employee belongs to a User
     public function user()
     {
         return $this->hasOne(User::class);
+    }
+
+    public function assignedCandidates()
+    {
+        return $this->belongsToMany(Candidate::class, 'candidate_employee_assignments', 'employee_id', 'candidate_id')
+            ->withPivot('assigned_by', 'notes', 'assigned_at')
+            ->withTimestamps();
     }
 }

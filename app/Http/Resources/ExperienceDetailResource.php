@@ -14,15 +14,14 @@ class ExperienceDetailResource extends JsonResource
      * @return array<string, mixed>
      */
     public function toArray($request)
-{
-    return [
-        // 'id' => $this->id,
-        'education' => $this->education,
-        'job' => $this->job,
-        'skill' => $this->skill,
-        'language' => $this->language,
-        'resume' => $this->resume ? asset(Storage::url($this->resume)) : null,
-    ];
-}
-
+    {
+        return [
+            // 'id' => $this->id,
+            'education' => $this->education,
+            'job' => $this->job,
+            'skill' => $this->skill,
+            'language' => $this->language,
+            'resume' => $this->resume ? generateFileUrl($this->resume) : null,
+        ];
+    }
 }

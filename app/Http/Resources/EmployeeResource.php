@@ -26,7 +26,7 @@ class EmployeeResource extends JsonResource
             'work_email' => $this->work_email,
             'personal_email' => $this->personal_email,
             'chat_video_call' => $this->chat_video_call,
-            'profile_image' => $this->generateFileUrl($this->profile_image),
+            'profile_image' => $this->profile_image ? generateFileUrl($this->profile_image) : null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             // Include nested resources
@@ -39,13 +39,4 @@ class EmployeeResource extends JsonResource
         ];
     }
 
-    protected function generateFileUrl(?string $path): ?string
-    {
-        if (!$path) return null;
-
-        // Encode the path properly
-        $encodedPath = implode('/', array_map('rawurlencode', explode('/', $path)));
-
-        return url("api/v.1/files/{$encodedPath}");
-    }
 }
