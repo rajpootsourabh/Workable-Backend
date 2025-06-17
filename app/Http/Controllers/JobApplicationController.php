@@ -197,12 +197,30 @@ class JobApplicationController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Unauthorized or company not set'], 403);
         }
 
-        // Only get applications where candidate belongs to user's company
-        $applications = CandidateApplication::with(['candidate', 'jobPost'])
+        // Start query
+        $applicationsQuery = CandidateApplication::with(['candidate', 'jobPost'])
             ->whereHas('candidate', function ($query) use ($user) {
                 $query->where('company_id', $user->company_id);
-            })
-            ->get();
+            });
+
+        // If role is 5, only show applications for candidates assigned to this employee
+        if ($user->role == 5) {
+            if (!$user->employee_id) {
+                return response()->json(['status' => 'error', 'message' => 'No employee profile linked to user'], 403);
+            }
+
+            // Filter only candidates assigned to this employee
+            $applicationsQuery->whereHas('candidate', function ($query) use ($user) {
+                $query->whereIn('id', function ($subQuery) use ($user) {
+                    $subQuery->select('candidate_id')
+                        ->from('candidate_employee_assignments')
+                        ->where('employee_id', $user->employee_id);
+                });
+            });
+        }
+
+        // Execute query
+        $applications = $applicationsQuery->get();
 
         // Reusable closure for file URL generation
         $generateFileUrl = function (?string $filePath) {
@@ -210,10 +228,8 @@ class JobApplicationController extends Controller
                 return null;
             }
 
-            // Encode path safely
             $encodedPath = implode('/', array_map('rawurlencode', explode('/', $filePath)));
 
-            // Prefix matches your api.php route group
             return url('api/v.1/files/' . $encodedPath);
         };
 
@@ -274,6 +290,7 @@ class JobApplicationController extends Controller
 
         return $this->successResponse($formattedApplications, 'Job applications fetched successfully');
     }
+
 
 
     public function getApplicationById($applicationId)

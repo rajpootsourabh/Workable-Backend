@@ -20,6 +20,7 @@ use App\Http\Controllers\JobApplicationStatsController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SimpleMailController;
+use App\Http\Controllers\UserProfileController;
 
 /*
 |--------------------------------------------------------------------------
@@ -135,6 +136,9 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::post('/upload', [ProfileController::class, 'uploadProfilePicture']);
         });
 
+        //Update at later stage above as comapny profile
+        Route::get('/profile', [UserProfileController::class, 'show']);
+        Route::patch('/profile', [UserProfileController::class, 'update']);
 
         // 📧 Mail Route
         Route::post('/send-employee-mail', [MailController::class, 'sendEmployeeEmail']);

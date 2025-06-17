@@ -428,6 +428,25 @@ class EmployeeController extends Controller
 
             $employee->emergencyContact()->updateOrCreate([], $validatedEmergency);
 
+            // --- Step 7: Password Update (if provided) ---
+            $credentialsData = $requestData['credentials'] ?? [];
+
+            if (!empty($credentialsData['password'])) {
+                $validatedPassword = Validator::make($credentialsData, [
+                    'password' => 'required|string|min:6',
+                ])->validate();
+
+                $linkedUser = $employee->user;
+
+                if ($linkedUser) {
+                    $linkedUser->update([
+                        'password' => bcrypt($validatedPassword['password']),
+                    ]);
+                } else {
+                    Log::warning("Employee {$employee->id} does not have an associated user to update password.");
+                }
+            }
+
             DB::commit();
 
             return $this->successResponse(['employee_id' => $employee->id], 'Employee details updated successfully!');
@@ -486,8 +505,30 @@ class EmployeeController extends Controller
                 return $this->errorResponse('Unauthorized: User not authenticated.', 401);
             }
 
+            // For role 5 (employee), return only their own employee record
+            if ($user->role == 5) {
+                if (!$user->employee_id) {
+                    return $this->errorResponse('Unauthorized: No employee profile linked to this user.', 403);
+                }
 
-            // Allowed role IDs: Owner = 1, HR = 2, Recruiter = 3, Finance = 4, 
+                $employee = Employee::with([
+                    'company',
+                    'jobDetail',
+                    'compensationDetail',
+                    'legalDocument',
+                    'experienceDetail',
+                    'emergencyContact'
+                ])->find($user->employee_id);
+
+                if (!$employee) {
+                    return $this->errorResponse('Employee not found.', 404);
+                }
+
+                // Return same response format — as a collection (array of one)
+                return $this->successResponse(EmployeeResource::collection(collect([$employee])), 'Employees fetched successfully');
+            }
+
+            // Allowed role IDs: Owner = 1, HR = 2, Recruiter = 3, Finance = 4
             $allowedRoles = [1, 2, 3, 4];
 
             if (!in_array($user->role, $allowedRoles)) {
@@ -498,7 +539,6 @@ class EmployeeController extends Controller
             if (!$user->company_id) {
                 return $this->errorResponse('Unauthorized: No company associated with this user.', 403);
             }
-
 
             // Fetch employees from the same company
             $employees = Employee::with([

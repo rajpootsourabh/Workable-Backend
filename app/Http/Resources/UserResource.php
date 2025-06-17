@@ -28,6 +28,9 @@ class UserResource extends JsonResource
                 'size' => $this->company->size,
                 'phone_number' => $this->company->phone_number,
                 'evaluating_website' => $this->company->evaluating_website,
+                'company_logo' => $this->company->company_logo ? generateFileUrl($this->company->company_logo) : null,
+                'company_description' => $this->company->company_description,
+                
             ],
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
