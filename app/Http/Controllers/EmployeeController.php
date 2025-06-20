@@ -557,4 +557,61 @@ class EmployeeController extends Controller
             return $this->errorResponse('An error occurred while fetching employees: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * List employee names (id + name) for dropdowns and lightweight usage.
+     * 
+     * - Returns only basic employee fields: id, first_name, last_name.
+     * - Suitable for dropdowns, autocomplete, and quick lookups.
+     * - Much faster and smaller than full EmployeeResource list.
+     * 
+     * Access control:
+     * - Allowed roles: Owner (1), HR (2), Recruiter (3), Finance (4), Employee (5)
+     * - Employee role (5) only sees their own name.
+     * 
+     * 
+     */
+    public function listEmployeeNames()
+    {
+        try {
+            $user = auth()->user();
+
+            if (!$user) {
+                return $this->errorResponse('Unauthorized', 401);
+            }
+
+            $allowedRoles = [1, 2, 3, 4, 5]; // adjust as needed
+
+            if (!in_array($user->role, $allowedRoles)) {
+                return $this->errorResponse('Unauthorized', 403);
+            }
+
+            if ($user->role == 5) {
+                if (!$user->employee_id) {
+                    return $this->errorResponse('No employee profile linked.', 403);
+                }
+
+                $employee = Employee::select('id', 'first_name', 'last_name')
+                    ->find($user->employee_id);
+
+                if (!$employee) {
+                    return $this->errorResponse('Employee not found.', 404);
+                }
+
+                return $this->successResponse([$employee], 'Employee fetched successfully');
+            }
+
+            if (!$user->company_id) {
+                return $this->errorResponse('No company associated.', 403);
+            }
+
+            $employees = Employee::select('id', 'first_name', 'last_name')
+                ->where('company_id', $user->company_id)
+                ->get();
+
+            return $this->successResponse($employees, 'Employee names fetched successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Error: ' . $e->getMessage(), 500);
+        }
+    }
 }

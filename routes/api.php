@@ -65,6 +65,7 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::post('/', [EmployeeController::class, 'storeCompleteEmployee']); // POST /api/v.1/employee
             Route::put('/{id}', [EmployeeController::class, 'updateCompleteEmployee']); // PUT /api/v1/employee/{id}
             Route::get('/all', [EmployeeController::class, 'listAllEmployees']); // GET /api/v1/employee/all
+            Route::get('/names', [EmployeeController::class, 'listEmployeeNames']); // GET /api/v1/employee/names
             Route::get('{id}/details', [EmployeeController::class, 'getEmployeeDetailsById']); // GET /api/v.1/employee/{id}/complete
             Route::get('{employeeId}/assignments', [CandidateAssignmentController::class, 'getAssignedCandidatesForEmployee']);
         });
