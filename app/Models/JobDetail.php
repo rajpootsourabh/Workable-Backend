@@ -18,7 +18,7 @@ class JobDetail extends Model
         'entity',          // The entity the employee works under
         'department',      // Department the employee belongs to
         'division',        // Division the employee belongs to
-        'manager',         // The employee's manager
+        'manager_id',      // FK to another employee who is the manager
         'effective_date',  // Effective date of the job details
         'employment_type', // Full-time, part-time, contractor, etc.
         'workplace',       // The workplace (e.g., Onsite, Remote, Hybrid)
@@ -27,9 +27,19 @@ class JobDetail extends Model
         'work_schedule',   // Work schedule details
     ];
 
-    // Define relationship with Employee model
+    /**
+     * JobDetail belongs to one Employee.
+     */
     public function employee()
     {
         return $this->belongsTo(Employee::class, 'employee_id', 'id');
+    }
+
+    /**
+     * JobDetail is managed by another Employee (Manager).
+     */
+    public function manager()
+    {
+        return $this->belongsTo(Employee::class, 'manager_id');
     }
 }

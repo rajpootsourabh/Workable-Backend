@@ -26,6 +26,16 @@ class Handler extends ExceptionHandler
 
     public function render($request, Throwable $exception)
     {
+        if ($exception instanceof ValidationException) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors' => $exception->errors(),
+                ], 422);
+            }
+        }
+
         if ($exception instanceof TokenInvalidException) {
             return response()->json(['error' => 'Invalid token. Token signature could not be verified.'], 401);
         }
@@ -44,7 +54,6 @@ class Handler extends ExceptionHandler
 
         return parent::render($request, $exception);
     }
-
     protected function unauthenticated($request, AuthenticationException $exception)
     {
         return response()->json([

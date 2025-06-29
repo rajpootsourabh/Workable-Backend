@@ -161,6 +161,7 @@ class AuthController extends Controller
     {
         $user = auth()->user();
 
+
         $response = [
             'access_token' => $token,
             'token_type'   => 'bearer',
@@ -171,6 +172,8 @@ class AuthController extends Controller
         // If role == 5, add employee_id to the response
         if ($user->role == 5) {
             $response['employee_id'] = $user->employee_id;
+            // Added as temporary way and should be changed
+            $response['is_manager'] = $user->employee->isManager();
         }
 
         return response()->json($response);

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\TimeOffRequestController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -65,7 +66,7 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::post('/', [EmployeeController::class, 'storeCompleteEmployee']); // POST /api/v.1/employee
             Route::put('/{id}', [EmployeeController::class, 'updateCompleteEmployee']); // PUT /api/v1/employee/{id}
             Route::get('/all', [EmployeeController::class, 'listAllEmployees']); // GET /api/v1/employee/all
-            Route::get('/names', [EmployeeController::class, 'listEmployeeNames']); // GET /api/v1/employee/names
+            Route::get('/options', [EmployeeController::class, 'getEmployeeOptions']); // GET /api/v1/employee/options
             Route::get('{id}/details', [EmployeeController::class, 'getEmployeeDetailsById']); // GET /api/v.1/employee/{id}/complete
             Route::get('{employeeId}/assignments', [CandidateAssignmentController::class, 'getAssignedCandidatesForEmployee']);
         });
@@ -136,6 +137,30 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::put('/credentials', [ProfileController::class, 'updateCredentials']);
             Route::post('/upload', [ProfileController::class, 'uploadProfilePicture']);
         });
+
+        // 🗓️ Time Off Requests
+        Route::prefix('time-off-requests')->controller(TimeOffRequestController::class)->group(function () {
+            // Create a new time off request
+            Route::post('/', 'submitTimeOffRequest');
+            // Get upcoming approved time off for logged-in employee
+            Route::get('/upcoming', 'getUpcomingTimeOff');
+            Route::get('/all', 'getAllTimeOff');
+            // Get leave balance for the logged-in employee
+            Route::get('/leave-balance', 'getLeaveBalance');
+            // Get requests by manager
+            Route::get('/manager', 'getByManager');
+            // Get requests by employee
+            Route::get('/employee/{employeeId}', 'getByEmployeeId');
+            // Approve/Reject time off request
+            Route::patch('/{id}/status', 'updateStatus');
+            // Delete a request
+            Route::delete('/{id}', 'destroy');
+            // Get single request
+            Route::get('/{id}', 'getById');
+        });
+
+
+
 
         //Update at later stage above as comapny profile
         Route::get('/profile', [UserProfileController::class, 'show']);

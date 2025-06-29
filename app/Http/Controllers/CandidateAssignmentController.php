@@ -106,8 +106,8 @@ class CandidateAssignmentController extends Controller
             $latestApplication = $candidate->applications->sortByDesc('created_at')->first();
             $candidate->stage = $latestApplication?->stage?->name ?? null;
 
-            // 🚫 Remove the full applications relationship from the output
-            $candidate->unsetRelation('applications');
+            // // 🚫 Remove the full applications relationship from the output
+            // $candidate->unsetRelation('applications');
 
             return $candidate;
         });
