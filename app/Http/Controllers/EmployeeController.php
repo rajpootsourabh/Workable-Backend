@@ -255,10 +255,9 @@ class EmployeeController extends Controller
             ];
 
             // Send welcome email
-            // if (!empty($emailData['email'])) {
-            //     Mail::to($emailData['email'])->send(new \App\Mail\EmployeeNotificationMail($emailData));
-            // }
-
+            if (!empty($emailData['email'])) {
+                Mail::to($emailData['email'])->send(new \App\Mail\EmployeeNotificationMail($emailData));
+            }
             DB::commit();
 
             return $this->successResponse(
