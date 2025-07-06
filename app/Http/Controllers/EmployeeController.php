@@ -572,6 +572,35 @@ class EmployeeController extends Controller
         }
     }
 
+
+
+    // Returns all subordinates under a manager (employee)
+    public function getSubordinates($managerId)
+    {
+        $manager = Employee::findOrFail($managerId);
+
+        // Eager load jobDetail for performance
+        $subordinates = $manager->subordinateEmployees()->load('jobDetail')->map(function ($employee) {
+            return [
+                'id' => $employee->id,
+                'first_name' => $employee->first_name,
+                'last_name' => $employee->last_name,
+                'middle_name' => $employee->middle_name,
+                'preferred_name' => $employee->preferred_name,
+                'profile_image' => $employee->profile_image
+                    ? generateFileUrl($employee->profile_image)
+                    : null,
+                'job_title' => optional($employee->jobDetail)->job_title, // Safe null handling
+            ];
+        });
+
+        return response()->json([
+            'manager' => $manager->first_name . ' ' . $manager->last_name,
+            'subordinates' => $subordinates,
+        ]);
+    }
+
+
     /**
      * List employee names (id + name) for dropdowns and lightweight usage.
      * 
@@ -585,59 +614,40 @@ class EmployeeController extends Controller
      * 
      * 
      */
-    public function getEmployeeOptions()
-    {
-        try {
-            $user = auth()->user();
+  public function getEmployeeOptions()
+{
+    try {
+        $user = auth()->user();
 
-            if (!$user) {
-                return $this->errorResponse('Unauthorized', 401);
-            }
-
-            $allowedRoles = [1, 2, 3, 4, 5]; // Owner, HR, Recruiter, Finance, Employee
-
-            if (!in_array($user->role, $allowedRoles)) {
-                return $this->errorResponse('Unauthorized', 403);
-            }
-
-            // For role 5 (employee), return only themselves
-            if ($user->role == 5) {
-                if (!$user->employee_id) {
-                    return $this->errorResponse('No employee profile linked.', 403);
-                }
-
-                $employee = Employee::find($user->employee_id);
-
-                if (!$employee) {
-                    return $this->errorResponse('Employee not found.', 404);
-                }
-
-                return $this->successResponse([
-                    [
-                        'id' => $employee->id,
-                        'name' => $employee->first_name . ' ' . $employee->last_name
-                    ]
-                ], 'Employee fetched successfully');
-            }
-
-            // Otherwise return all employees from the same company
-            if (!$user->company_id) {
-                return $this->errorResponse('No company associated.', 403);
-            }
-
-            $employees = Employee::select('id', 'first_name', 'last_name')
-                ->where('company_id', $user->company_id)
-                ->get()
-                ->map(function ($employee) {
-                    return [
-                        'id' => $employee->id,
-                        'name' => $employee->first_name . ' ' . $employee->last_name,
-                    ];
-                });
-
-            return $this->successResponse($employees, 'Employee names fetched successfully');
-        } catch (\Exception $e) {
-            return $this->errorResponse('Error: ' . $e->getMessage(), 500);
+        if (!$user) {
+            return $this->errorResponse('Unauthorized', 401);
         }
+
+        $allowedRoles = [1, 2, 3, 4, 5]; // Owner, HR, Recruiter, Finance, Employee
+
+        if (!in_array($user->role, $allowedRoles)) {
+            return $this->errorResponse('Unauthorized', 403);
+        }
+
+        // Return all employees from the same company (for all allowed roles)
+        if (!$user->company_id) {
+            return $this->errorResponse('No company associated.', 403);
+        }
+
+        $employees = Employee::select('id', 'first_name', 'last_name')
+            ->where('company_id', $user->company_id)
+            ->get()
+            ->map(function ($employee) {
+                return [
+                    'id' => $employee->id,
+                    'name' => $employee->first_name . ' ' . $employee->last_name,
+                ];
+            });
+
+        return $this->successResponse($employees, 'Employee names fetched successfully');
+    } catch (\Exception $e) {
+        return $this->errorResponse('Error: ' . $e->getMessage(), 500);
     }
+}
+
 }

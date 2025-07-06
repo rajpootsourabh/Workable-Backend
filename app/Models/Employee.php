@@ -103,10 +103,19 @@ class Employee extends Model
         return $this->hasMany(JobDetail::class, 'manager_id');
     }
 
+    public function subordinateEmployees()
+    {
+        return Employee::whereIn('id', function ($query) {
+            $query->select('employee_id')
+                ->from('job_details')
+                ->where('manager_id', $this->id);
+        })->get();
+    }
+
     public function isManager()
-{
-    return $this->subordinates()->exists();
-}
+    {
+        return $this->subordinates()->exists();
+    }
 
     /**
      * One-to-Many: An employee can have multiple leave balance records.
@@ -122,5 +131,4 @@ class Employee extends Model
     {
         return $this->hasMany(EmployeeLeaveBalance::class);
     }
-
 }

@@ -19,6 +19,7 @@ use App\Http\Controllers\FileController;
 use App\Http\Controllers\JobApplicationController;
 use App\Http\Controllers\JobApplicationStatsController;
 use App\Http\Controllers\MailController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SimpleMailController;
 use App\Http\Controllers\UserProfileController;
@@ -69,6 +70,8 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::get('/options', [EmployeeController::class, 'getEmployeeOptions']); // GET /api/v1/employee/options
             Route::get('{id}/details', [EmployeeController::class, 'getEmployeeDetailsById']); // GET /api/v.1/employee/{id}/complete
             Route::get('{employeeId}/assignments', [CandidateAssignmentController::class, 'getAssignedCandidatesForEmployee']);
+            // Get all subordinates under a manager (employee)
+            Route::get('{id}/subordinates', [EmployeeController::class, 'getSubordinates']); // GET /api/v1/employee/{id}/subordinates
         });
 
         // 📌 Job Applications Routes
@@ -159,6 +162,13 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::get('/{id}', 'getById');
         });
 
+
+        // 🔔 Notifications
+        Route::prefix('notifications')->middleware('auth:api')->group(function () {
+            Route::get('/', [NotificationController::class, 'all']);
+            Route::get('/unread', [NotificationController::class, 'unread']);
+            Route::post('/mark-as-read', [NotificationController::class, 'markAsRead']);
+        });
 
 
 
