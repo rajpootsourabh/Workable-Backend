@@ -131,4 +131,14 @@ class Employee extends Model
     {
         return $this->hasMany(EmployeeLeaveBalance::class);
     }
+
+    public function todos()
+    {
+        return $this->hasMany(Todo::class);
+    }
+
+    public function events()
+    {
+        return $this->hasMany(Event::class, 'manager_id');
+    }
 }

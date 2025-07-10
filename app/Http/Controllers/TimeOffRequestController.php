@@ -7,7 +7,9 @@ use App\Models\Employee;
 use App\Models\EmployeeLeaveBalance;
 use App\Models\TimeOffRequest;
 use App\Models\User;
+use App\Notifications\TimeOffApproved;
 use App\Notifications\TimeOffRequested;
+use App\Notifications\TimeOffStatusChanged;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -222,15 +224,13 @@ class TimeOffRequestController extends Controller
     {
         $user = auth()->user();
 
-        // Ensure the user is an employee (manager)
         if (!$user || !$user->employee_id) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized or employee ID not found.',
+                'message' => 'Unauthorized: User not linked to an employee profile.',
             ], 403);
         }
 
-        // Validate input
         $validated = $request->validate([
             'status' => 'required|in:approved,rejected',
             'manager_note' => 'nullable|string',
@@ -245,32 +245,35 @@ class TimeOffRequestController extends Controller
             ], 404);
         }
 
-        // Ensure the user is the assigned manager
         if ($timeOff->manager_id !== $user->employee_id) {
             return response()->json([
                 'success' => false,
-                'message' => 'You are not authorized to update this request.',
+                'message' => 'Only the assigned manager can approve or reject this request.',
             ], 403);
         }
 
-        // Prevent updating if already processed
         if (in_array($timeOff->status, ['approved', 'rejected', 'cancelled'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'This time off request has already been processed and cannot be updated.',
+                'message' => 'This time off request has already been processed.',
             ], 409);
         }
 
-        // ✅ Update status and notes
         $timeOff->update([
             'status' => $validated['status'],
             'manager_note' => $validated['manager_note'] ?? null,
             'updated_by' => $user->employee_id,
         ]);
 
+        if ($timeOff->employee && $timeOff->employee->user) {
+            $timeOff->employee->user->notify(
+                new TimeOffStatusChanged($timeOff, $validated['status'])
+            );
+        }
+
         return response()->json([
             'success' => true,
-            'message' => 'Time off request status updated.',
+            'message' => 'Time off request status updated successfully.',
             'data' => $timeOff,
         ]);
     }
@@ -394,5 +397,96 @@ class TimeOffRequestController extends Controller
             'success' => true,
             'data' => $balances,
         ]);
+    }
+
+    public function updateLeaveBalanceById(Request $request, $id)
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized: User not authenticated.',
+            ], 401);
+        }
+
+        $validated = $request->validate([
+            'allocated_days' => 'required|numeric|min:0|max:999.99',
+        ]);
+
+        $leaveBalance = EmployeeLeaveBalance::find($id);
+
+        if (!$leaveBalance) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Leave balance not found.',
+            ], 404);
+        }
+
+        $targetEmployeeId = $leaveBalance->employee_id;
+        $adminRoles = [1, 2, 3, 4];
+
+        // ✅ Admins (roles 1-4) can update any leave balance
+        if (in_array($user->role, $adminRoles)) {
+            $leaveBalance->allocated_days = $validated['allocated_days'];
+            $leaveBalance->updated_at = now();
+            $leaveBalance->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Leave balance updated successfully.',
+                'data' => [
+                    'id' => $leaveBalance->id,
+                    'allocated_days' => $leaveBalance->allocated_days,
+                ],
+            ]);
+        }
+
+        // ✅ Employees with role=5 (only if manager) can update self or subordinates
+        if ($user->role == 5 && $user->employee_id) {
+            $managerId = $user->employee_id;
+
+            // Check if this employee is a manager (has subordinates)
+            $isManager = \App\Models\JobDetail::where('manager_id', $managerId)->exists();
+
+            if (!$isManager) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized: Only managers can update leave balances.',
+                ], 403);
+            }
+
+            // Allow if updating own or subordinate's balance
+            $isSelf = $managerId == $targetEmployeeId;
+            $isSubordinate = \App\Models\JobDetail::where('manager_id', $managerId)
+                ->where('employee_id', $targetEmployeeId)
+                ->exists();
+
+            if ($isSelf || $isSubordinate) {
+                $leaveBalance->allocated_days = $validated['allocated_days'];
+                $leaveBalance->updated_at = now();
+                $leaveBalance->save();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Leave balance updated successfully.',
+                    'data' => [
+                        'id' => $leaveBalance->id,
+                        'allocated_days' => $leaveBalance->allocated_days,
+                    ],
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized: You can only update your own or your associates\' leave balances.',
+            ], 403);
+        }
+
+        // ❌ Everyone else denied
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthorized: You do not have permission to update this leave balance.',
+        ], 403);
     }
 }

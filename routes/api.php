@@ -15,6 +15,7 @@ use App\Http\Controllers\CandidateController;
 use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\JobPostController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EventController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\JobApplicationController;
 use App\Http\Controllers\JobApplicationStatsController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\MailController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SimpleMailController;
+use App\Http\Controllers\TodoController;
 use App\Http\Controllers\UserProfileController;
 
 /*
@@ -150,6 +152,8 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::get('/all', 'getAllTimeOff');
             // Get leave balance for the logged-in employee
             Route::get('/leave-balance', 'getLeaveBalance');
+            // Update specific leave balance
+            Route::put('/leave-balance/{id}', 'updateLeaveBalanceById');
             // Get requests by manager
             Route::get('/manager', 'getByManager');
             // Get requests by employee
@@ -168,6 +172,21 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
             Route::get('/', [NotificationController::class, 'all']);
             Route::get('/unread', [NotificationController::class, 'unread']);
             Route::post('/mark-as-read', [NotificationController::class, 'markAsRead']);
+        });
+
+        // 🗓️ Events
+        Route::prefix('events')->controller(EventController::class)->group(function () {
+            Route::get('/', 'index');     // GET /api/v.1/events
+            Route::post('/', 'store');    // POST /api/v.1/events
+        });
+
+
+        // ✅ Todos
+        Route::prefix('todos')->controller(TodoController::class)->group(function () {
+            Route::get('/', 'index');         // GET /api/v.1/todos
+            Route::post('/', 'store');        // POST /api/v.1/todos
+            Route::patch('/{id}', 'update');  // PATCH /api/v.1/todos/{id}
+            Route::delete('/{id}', 'destroy'); // DELETE /api/v.1/todos/{id}
         });
 
 

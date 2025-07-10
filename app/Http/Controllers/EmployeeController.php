@@ -300,10 +300,59 @@ class EmployeeController extends Controller
         try {
             $requestData = FormatHelper::camelToSnake($request->all());
             $user = auth()->user();
-            $allowedRoles = [1, 2, 3, 4];
+            $user = auth()->user();
 
-            if (!in_array($user->role, $allowedRoles)) {
-                return $this->errorResponse('Unauthorized: You do not have permission to update an employee.', 403);
+            if (!$user) {
+                return $this->errorResponse('Unauthorized: User not authenticated.', 401);
+            }
+
+            if (!$user->employee_id) {
+                return $this->errorResponse('Unauthorized: No employee profile linked to this user.', 403);
+            }
+
+            $employeeToUpdate = Employee::with([
+                'jobDetail',
+                'compensationDetail',
+                'legalDocument',
+                'experienceDetail',
+                'emergencyContact'
+            ])->findOrFail($id);
+
+            $loggedInEmployee = Employee::with('jobDetail')->findOrFail($user->employee_id);
+
+            // 1. Owner (role = 1): Can update anyone in their company
+            if ($user->role === 1) {
+                if ($employeeToUpdate->company_id !== $user->company_id) {
+                    return $this->errorResponse('Unauthorized: Employee does not belong to your company.', 403);
+                }
+                // Allow update
+            }
+            // 2. Manager (role 5 with subordinates): Can update themselves + subordinates
+            elseif ($user->role === 5 && $loggedInEmployee->isManager()) {
+                $subordinateIds = $loggedInEmployee->subordinateEmployees()->pluck('id')->toArray();
+
+                if ($employeeToUpdate->id !== $loggedInEmployee->id && !in_array($employeeToUpdate->id, $subordinateIds)) {
+                    return $this->errorResponse('Unauthorized: You can only update yourself and your subordinates.', 403);
+                }
+                // Allow update
+            }
+            // 3. Regular Employee (role 5): Can update only themselves
+            elseif ($user->role === 5) {
+                if ($employeeToUpdate->id !== $loggedInEmployee->id) {
+                    return $this->errorResponse('Unauthorized: You can only update your own profile.', 403);
+                }
+                // Allow update
+            }
+            // 4. HR, Recruiter, Finance (role 2,3,4): Can update anyone in company
+            elseif (in_array($user->role, [2, 3, 4])) {
+                if ($employeeToUpdate->company_id !== $user->company_id) {
+                    return $this->errorResponse('Unauthorized: Employee does not belong to your company.', 403);
+                }
+                // Allow update
+            }
+            // 5. Any other unknown roles
+            else {
+                return $this->errorResponse('Unauthorized: Unrecognized or restricted role.', 403);
             }
 
             $employee = Employee::with([
@@ -477,7 +526,7 @@ class EmployeeController extends Controller
         try {
             $user = auth()->user(); // assuming auth is set up
 
-            $allowedRoles = [1, 2, 3, 4];
+            $allowedRoles = [1, 2, 3, 4, 5];
 
             // Fetch the employee by ID
             $employee = Employee::with([
@@ -514,63 +563,89 @@ class EmployeeController extends Controller
         try {
             $user = auth()->user();
 
-            // Check if user is authenticated
             if (!$user) {
                 return $this->errorResponse('Unauthorized: User not authenticated.', 401);
             }
 
-            // For role 5 (employee), return only their own employee record
-            if ($user->role == 5) {
-                if (!$user->employee_id) {
-                    return $this->errorResponse('Unauthorized: No employee profile linked to this user.', 403);
-                }
-
-                $employee = Employee::with([
-                    'company',
-                    'jobDetail',
-                    'compensationDetail',
-                    'legalDocument',
-                    'experienceDetail',
-                    'emergencyContact'
-                ])->find($user->employee_id);
-
-                if (!$employee) {
-                    return $this->errorResponse('Employee not found.', 404);
-                }
-
-                // Return same response format — as a collection (array of one)
-                return $this->successResponse(EmployeeResource::collection(collect([$employee])), 'Employees fetched successfully');
+            if (!$user->employee_id) {
+                return $this->errorResponse('Unauthorized: No employee profile linked to this user.', 403);
             }
 
-            // Allowed role IDs: Owner = 1, HR = 2, Recruiter = 3, Finance = 4
-            $allowedRoles = [1, 2, 3, 4];
-
-            if (!in_array($user->role, $allowedRoles)) {
-                return $this->errorResponse('Unauthorized: You do not have permission to view employees.', 403);
-            }
-
-            // Ensure user has a company
-            if (!$user->company_id) {
-                return $this->errorResponse('Unauthorized: No company associated with this user.', 403);
-            }
-
-            // Fetch employees from the same company
-            $employees = Employee::with([
+            // Get current employee model with all required relations
+            $employee = Employee::with([
                 'company',
                 'jobDetail',
                 'compensationDetail',
                 'legalDocument',
                 'experienceDetail',
                 'emergencyContact'
-            ])->where('company_id', $user->company_id)->get();
+            ])->find($user->employee_id);
 
-            // Return the employees using the EmployeeResource collection
-            return $this->successResponse(EmployeeResource::collection($employees), 'Employees fetched successfully');
+            if (!$employee) {
+                return $this->errorResponse('Employee not found.', 404);
+            }
+
+            // If role is 1 (Owner) — return all employees from the same company
+            if ($user->role === 1) {
+                $employees = Employee::with([
+                    'company',
+                    'jobDetail',
+                    'compensationDetail',
+                    'legalDocument',
+                    'experienceDetail',
+                    'emergencyContact'
+                ])->where('company_id', $user->company_id)->get();
+
+                return $this->successResponse(EmployeeResource::collection($employees), 'All company employees fetched (owner).');
+            }
+
+            // If employee is a manager (has subordinates)
+            if ($user->role == 5 && $employee->isManager()) {
+                // Eager-load subordinates with all relationships
+                $subordinateIds = $employee->subordinateEmployees()->pluck('id')->toArray();
+
+                $subordinates = Employee::with([
+                    'company',
+                    'jobDetail',
+                    'compensationDetail',
+                    'legalDocument',
+                    'experienceDetail',
+                    'emergencyContact'
+                ])->whereIn('id', $subordinateIds)->get();
+
+                // Merge manager and subordinates
+                $combined = collect([$employee])->merge($subordinates);
+
+                return $this->successResponse(EmployeeResource::collection($combined), 'Manager and associates fetched.');
+            }
+
+
+            // If regular employee
+            if ($user->role == 5) {
+                return $this->successResponse(EmployeeResource::collection(collect([$employee])), 'Single employee fetched.');
+            }
+
+            // HR, Recruiter, Finance roles (2, 3, 4) → show all employees in their company
+            $allowedRoles = [2, 3, 4];
+            if (in_array($user->role, $allowedRoles)) {
+                $employees = Employee::with([
+                    'company',
+                    'jobDetail',
+                    'compensationDetail',
+                    'legalDocument',
+                    'experienceDetail',
+                    'emergencyContact'
+                ])->where('company_id', $user->company_id)->get();
+
+                return $this->successResponse(EmployeeResource::collection($employees), 'All employees fetched (HR/Recruiter/Finance).');
+            }
+
+            return $this->errorResponse('Unauthorized or unrecognized role.', 403);
         } catch (\Exception $e) {
-            // Return a standardized error response in case of an exception
             return $this->errorResponse('An error occurred while fetching employees: ' . $e->getMessage(), 500);
         }
     }
+
 
 
 
@@ -614,40 +689,39 @@ class EmployeeController extends Controller
      * 
      * 
      */
-  public function getEmployeeOptions()
-{
-    try {
-        $user = auth()->user();
+    public function getEmployeeOptions()
+    {
+        try {
+            $user = auth()->user();
 
-        if (!$user) {
-            return $this->errorResponse('Unauthorized', 401);
+            if (!$user) {
+                return $this->errorResponse('Unauthorized', 401);
+            }
+
+            $allowedRoles = [1, 2, 3, 4, 5]; // Owner, HR, Recruiter, Finance, Employee
+
+            if (!in_array($user->role, $allowedRoles)) {
+                return $this->errorResponse('Unauthorized', 403);
+            }
+
+            // Return all employees from the same company (for all allowed roles)
+            if (!$user->company_id) {
+                return $this->errorResponse('No company associated.', 403);
+            }
+
+            $employees = Employee::select('id', 'first_name', 'last_name')
+                ->where('company_id', $user->company_id)
+                ->get()
+                ->map(function ($employee) {
+                    return [
+                        'id' => $employee->id,
+                        'name' => $employee->first_name . ' ' . $employee->last_name,
+                    ];
+                });
+
+            return $this->successResponse($employees, 'Employee names fetched successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Error: ' . $e->getMessage(), 500);
         }
-
-        $allowedRoles = [1, 2, 3, 4, 5]; // Owner, HR, Recruiter, Finance, Employee
-
-        if (!in_array($user->role, $allowedRoles)) {
-            return $this->errorResponse('Unauthorized', 403);
-        }
-
-        // Return all employees from the same company (for all allowed roles)
-        if (!$user->company_id) {
-            return $this->errorResponse('No company associated.', 403);
-        }
-
-        $employees = Employee::select('id', 'first_name', 'last_name')
-            ->where('company_id', $user->company_id)
-            ->get()
-            ->map(function ($employee) {
-                return [
-                    'id' => $employee->id,
-                    'name' => $employee->first_name . ' ' . $employee->last_name,
-                ];
-            });
-
-        return $this->successResponse($employees, 'Employee names fetched successfully');
-    } catch (\Exception $e) {
-        return $this->errorResponse('Error: ' . $e->getMessage(), 500);
     }
-}
-
 }
