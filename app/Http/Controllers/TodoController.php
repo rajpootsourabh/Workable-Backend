@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Todo;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -11,7 +12,12 @@ class TodoController extends Controller
     // Get logged-in employee's todos
     public function index()
     {
-        $todos = Todo::where('employee_id', Auth::user()->employee_id)->get();
+        $today = Carbon::today();
+
+        $todos = Todo::where('employee_id', Auth::user()->employee_id)
+            ->whereDate('created_at', $today)
+            ->get();
+
         return response()->json($todos);
     }
 
@@ -34,7 +40,10 @@ class TodoController extends Controller
     // Toggle done status
     public function update(Request $request, $id)
     {
-        $todo = Todo::where('employee_id', Auth::user()->employee_id)->findOrFail($id);
+        $todo = Todo::where('employee_id', Auth::user()->employee_id)
+            ->whereDate('created_at', Carbon::today())
+            ->findOrFail($id);
+
         $todo->is_done = !$todo->is_done;
         $todo->save();
 
@@ -44,7 +53,10 @@ class TodoController extends Controller
     // Delete a todo
     public function destroy($id)
     {
-        $todo = Todo::where('employee_id', Auth::user()->employee_id)->findOrFail($id);
+        $todo = Todo::where('employee_id', Auth::user()->employee_id)
+            ->whereDate('created_at', Carbon::today())
+            ->findOrFail($id);
+
         $todo->delete();
 
         return response()->json(['message' => 'Todo deleted']);

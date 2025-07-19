@@ -171,7 +171,8 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
         Route::prefix('notifications')->middleware('auth:api')->group(function () {
             Route::get('/', [NotificationController::class, 'all']);
             Route::get('/unread', [NotificationController::class, 'unread']);
-            Route::post('/mark-as-read', [NotificationController::class, 'markAsRead']);
+            Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+            Route::post('/{id}/mark-read', [NotificationController::class, 'markAsRead']); // new: individual read
         });
 
         // 🗓️ Events

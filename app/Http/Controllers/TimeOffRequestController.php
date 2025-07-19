@@ -106,7 +106,7 @@ class TimeOffRequestController extends Controller
         // Send notification to manager's user account
         $managerUser = User::where('employee_id', $managerId)->first();
         if ($managerUser) {
-            $managerUser->notify(new TimeOffRequested($requestModel));
+            $managerUser->notify(new TimeOffRequested($requestModel, $managerUser->id));
         }
 
 
@@ -236,7 +236,7 @@ class TimeOffRequestController extends Controller
             'manager_note' => 'nullable|string',
         ]);
 
-        $timeOff = TimeOffRequest::find($id);
+        $timeOff = TimeOffRequest::with('employee.user')->find($id);
 
         if (!$timeOff) {
             return response()->json([
@@ -265,10 +265,10 @@ class TimeOffRequestController extends Controller
             'updated_by' => $user->employee_id,
         ]);
 
-        if ($timeOff->employee && $timeOff->employee->user) {
-            $timeOff->employee->user->notify(
-                new TimeOffStatusChanged($timeOff, $validated['status'])
-            );
+        $timeOff = TimeOffRequest::with('employee.user')->find($id);
+
+        if ($timeOff && $timeOff->employee && $timeOff->employee->user) {
+            $timeOff->employee->user->notify(new TimeOffStatusChanged($timeOff, $validated['status']));
         }
 
         return response()->json([

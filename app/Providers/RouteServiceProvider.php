@@ -36,5 +36,8 @@ class RouteServiceProvider extends ServiceProvider
             Route::middleware('web')
                 ->group(base_path('routes/web.php'));
         });
+
+        // ✅ Add this line to register private/public channels
+        require base_path('routes/channels.php');
     }
 }
