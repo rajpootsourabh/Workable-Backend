@@ -15,20 +15,20 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie', 'broadcasting/auth'],
+	'paths' => ['api/*', 'sanctum/csrf-cookie', 'broadcasting/auth'],
 
-    'allowed_methods' => ['*'],
+    	'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    	'allowed_origins' => array_filter(explode(',', env('ALLOWED_ORIGINS', ''))),
+  
+    	'allowed_origins_patterns' => [],
 
-    'allowed_origins_patterns' => [],
+    	'allowed_headers' => ['*'],
 
-    'allowed_headers' => ['*'],
+    	'exposed_headers' => [],
 
-    'exposed_headers' => [],
+    	'max_age' => 0,
 
-    'max_age' => 0,
+    	'supports_credentials' => true,
 
-    'supports_credentials' => false,
-
-];
+	];
