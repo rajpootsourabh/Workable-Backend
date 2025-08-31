@@ -2,6 +2,8 @@
 
 namespace App\Traits;
 
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+
 trait ApiResponse
 {
     /**
@@ -35,6 +37,24 @@ trait ApiResponse
             'status' => false,
             'message' => $message,
             'errors' => $errors
+        ], $code);
+    }
+
+    /**
+     * Paginated success response method.
+     */
+    public function paginatedResponse(LengthAwarePaginator $paginator, $message = 'Success', $code = 200)
+    {
+        return response()->json([
+            'status'     => true,
+            'message'    => $message,
+            'data'       => $paginator->items(),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page'     => $paginator->perPage(),
+                'total'        => $paginator->total(),
+                'last_page'    => $paginator->lastPage(),
+            ]
         ], $code);
     }
 }

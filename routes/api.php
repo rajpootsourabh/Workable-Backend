@@ -1,5 +1,11 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminCompanyController;
+use App\Http\Controllers\Admin\AdminEmployeeController;
+use App\Http\Controllers\Admin\AdminJobController;
+use App\Http\Controllers\Admin\AdminTimeOffRequestController;
+use App\Http\Controllers\Admin\AdminSubscriptionController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\TimeOffRequestController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -40,9 +46,33 @@ use App\Http\Controllers\UserProfileController;
 
 Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
 
+    // ✅ ADMIN APIs
+    Route::prefix('admin')->group(function () {
+        // Company Routes
+        Route::get('/companies', [AdminCompanyController::class, 'listCompanies']);
+        Route::patch('/companies/{id}/status', [AdminCompanyController::class, 'updateStatus']);
+        // Employee Routes
+        Route::get('/employees', [AdminEmployeeController::class, 'listAllEmployees']);
+        Route::put('/employees/{id}', [AdminEmployeeController::class, 'updateEmployee']);
+        Route::delete('/employees/{id}', [AdminEmployeeController::class, 'deleteEmployee']);
+        // Job Routes
+        Route::get('/jobs', [AdminJobController::class, 'listAllJobs']);
+        Route::get('/jobs/{jobId}/stages', [AdminJobController::class, 'getApplicationCountsByStage']);
+        // Time off Routes
+        Route::get('/time-off-requests', [AdminTimeOffRequestController::class, 'index']);
+        // Subscription Routes
+        Route::get('/subscriptions', [AdminSubscriptionController::class, 'index']);
+        Route::get('/companies/{id}/subscriptions', [AdminSubscriptionController::class, 'show']);
+    });
+
     // 🔐 Public routes
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);
+
+    // 📧 Password Reset (Public)
+    Route::post('/password/forgot', [PasswordResetController::class, 'sendResetLink']);
+    Route::post('/password/reset', [PasswordResetController::class, 'resetPassword']);
+
 
     Route::get('cacheclear', function () {
         Artisan::call('config:clear');

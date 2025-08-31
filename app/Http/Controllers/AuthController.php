@@ -99,8 +99,8 @@ class AuthController extends Controller
             // Create the user and associate with company
             $user = User::create([
                 'company_id' => $company->id,
-                'first_name' => "N/A",
-                'last_name' => "N/A",
+                'first_name' => "Admin",
+                'last_name' => "",
                 'email' => $request->email,
                 'role' => $request->role,
                 'is_active' => 1,
@@ -178,8 +178,6 @@ class AuthController extends Controller
 
         return response()->json($response);
     }
-
-
 
 
     /**

@@ -86,6 +86,13 @@ class Employee extends Model
     }
 
     /**
+     * Accessor for employee's account state.
+     */
+    public function getStatusAttribute()
+    {
+        return $this->user && $this->user->is_active ? 'Active' : 'Inactive';
+    }
+    /**
      * Many-to-Many: An employee is assigned to many candidates.
      */
     public function assignedCandidates()

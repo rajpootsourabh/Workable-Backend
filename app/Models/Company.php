@@ -16,7 +16,11 @@ class Company extends Model
         'website',
         'size',
         'phone_number',
+        'company_logo',
+        'company_description',
         'evaluating_website',
+        'status',
+        'approved_at',
     ];
 
     /**
@@ -32,5 +36,39 @@ class Company extends Model
     public function jobPosts()
     {
         return $this->hasMany(JobPost::class);
+    }
+
+    /**
+     * A company can have many employees.
+     */
+    public function employees()
+    {
+        return $this->hasMany(Employee::class, 'company_id', 'id');
+    }
+
+    /**
+     * A company can have many subscriptions.
+     */
+    public function subscriptions()
+    {
+        return $this->hasMany(CompanySubscription::class, 'company_id');
+    }
+
+    /**
+     * Get the active subscription of the company.
+     */
+    public function activeSubscription()
+    {
+        return $this->hasOne(CompanySubscription::class, 'company_id')
+            ->where('is_active', 1)
+            ->where('ends_at', '>=', now());
+    }
+
+    /**
+     * Get the current plan directly.
+     */
+    public function currentPlan()
+    {
+        return $this->activeSubscription?->plan;
     }
 }

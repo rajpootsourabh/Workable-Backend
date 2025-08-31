@@ -12,6 +12,9 @@ class DatabaseSeeder extends Seeder
             SourceSeeder::class,
             TimeOffTypesSeeder::class,
             EmployeeLeaveBalanceSeeder::class,
+            SubscriptionPlanSeeder::class,
+            SubscriptionPlanFeatureSeeder::class,
+
         ]);
     }
 }
