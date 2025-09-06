@@ -29,7 +29,7 @@ class CompanyWelcomeMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Welcome to Bipani',
+            subject: 'Welcome to Hustoro',
         );
     }
 

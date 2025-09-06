@@ -20,11 +20,11 @@ class MailController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'temp_password' => $request->temp_password,
-            'it_support_email' => 'itsupport@bipani.co',
+            'it_support_email' => 'itsupport@hustoro.com',
             'sender_name' => 'Jane Smith',
             'sender_position' => 'HR Manager',
-            'company_name' => 'Bipani',
-            'contact_info' => 'contact@bipani.co | +91-1234567890',
+            'company_name' => 'Hustoro.com',
+            'contact_info' => 'contact@hustoro.com | +91-1234567890',
         ];
 
         Mail::to($data['email'])->send(new EmployeeNotificationMail($data));

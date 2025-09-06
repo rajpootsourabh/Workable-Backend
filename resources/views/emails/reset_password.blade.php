@@ -18,7 +18,7 @@
           <!-- Header -->
           <tr>
             <td align="center" style="padding:20px; background-color:#0f766e;">
-              <img src="https://res.cloudinary.com/dwi5dlj62/image/upload/v1747243088/logo-bxL4WHcf_utrjxi.png"
+              <img src="https://res.cloudinary.com/dwi5dlj62/image/upload/v1756741894/hustoro_logo_white_dxorts.png"
                 alt="{{ config('app.name') }} Logo"
                 style="max-height:40px; display:block;">
             </td>

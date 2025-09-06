@@ -44,7 +44,7 @@ class CandidateApplicationCommentController extends Controller
                 'candidate_name' => $candidate->first_name . ' ' . $candidate->last_name,
                 'commenter_name' => $commenterName,
                 'comment_text' => $validated['comment'],
-                'login_link' => "https://bipani.com/signin",
+                'login_link' => "https://hustoro.com/signin",
                 'sender_name' => auth()->user()->name ?? 'Recruitment Team',
                 'company_name' => 'Your Company Name',
             ];

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Welcome to Bipani</title>
+  <title>Welcome to Hustoro</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -93,13 +93,13 @@
   <div class="email-container">
     <!-- Header -->
     <div class="header">
-      <img src="https://res.cloudinary.com/dwi5dlj62/image/upload/v1747243088/logo-bxL4WHcf_utrjxi.png" alt="Bipani Logo" />
+      <img src="https://res.cloudinary.com/dwi5dlj62/image/upload/v1756741894/hustoro_logo_white_dxorts.png" alt="Hustoro Logo" />
     </div>
 
     <!-- Main Content -->
     <div class="content">
       <img class="main-icon" src="https://cdn-icons-png.flaticon.com/512/10373/10373129.png" alt="Envelope Icon" />
-      <h2>Welcome to Bipani, {{ $data['company_name'] }}!</h2>
+      <h2>Welcome to Hustoro, {{ $data['company_name'] }}!</h2>
       <div class="welcome-text">
         We're excited to have your company join our platform.
       </div>
@@ -108,7 +108,7 @@
       <p>Your company profile has been successfully created. Below are your login credentials:</p>
 
       <div class="credentials">
-        🌐 <strong>Website:</strong> <a href="https://bipani.co/login">https://bipani.co/login</a><br/>
+        🌐 <strong>Website:</strong> <a href="https://hustoro.com/login">https://hustoro.com/login</a><br/>
         🏢 <strong>Company Name:</strong> {{ $data['company_name'] }}<br/>
         📧 <strong>Email:</strong> {{ $data['email'] }}<br/>
         🔐 <strong>Password:</strong> {{ $data['password'] }}<br/>
@@ -117,11 +117,11 @@
 
       <p>Please log in using the above credentials and change your password immediately for security.</p>
 
-      <p>If you have any questions or need assistance, reach out to us at <a href="mailto:support@bipani.co">support@bipani.co</a>.</p>
+      <p>If you have any questions or need assistance, reach out to us at <a href="mailto:support@hustoro.com">support@hustoro.com</a>.</p>
 
       <p style="margin-top: 30px;">
         Warm regards,<br/>
-        Team Bipani
+        Team Hustoro
       </p>
     </div>
 
@@ -133,7 +133,7 @@
         <a href="#"><img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" alt="LinkedIn" /></a>
         <a href="#"><img src="https://cdn-icons-png.flaticon.com/512/733/733579.png" alt="Twitter" /></a>
       </div>
-      <p>©2025 www.bipani.com. All Rights Reserved.</p>
+      <p>©2025 www.hustoro.com. All Rights Reserved.</p>
       <a href="#" class="unsubscribe">Unsubscribe</a>
     </div>
   </div>

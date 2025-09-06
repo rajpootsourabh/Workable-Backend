@@ -247,11 +247,11 @@ class EmployeeController extends Controller
                 'name' => $employee->first_name . ' ' . $employee->last_name,
                 'email' => $userAccount->email,
                 'temp_password' => $tempPassword,
-                'it_support_email' => 'itsupport@bipani.co',
+                'it_support_email' => 'itsupport@hustoro.com',
                 'sender_name' => 'Anwar Kazi',
                 'sender_position' => 'CEO',
-                'company_name' => 'Bipani',
-                'contact_info' => 'contact@bipani.co | +91-1234567890',
+                'company_name' => 'Hustoro',
+                'contact_info' => 'contact@hustoro.com | +91-1234567890',
             ];
 
             // Send welcome email
@@ -567,24 +567,6 @@ class EmployeeController extends Controller
                 return $this->errorResponse('Unauthorized: User not authenticated.', 401);
             }
 
-            if (!$user->employee_id) {
-                return $this->errorResponse('Unauthorized: No employee profile linked to this user.', 403);
-            }
-
-            // Get current employee model with all required relations
-            $employee = Employee::with([
-                'company',
-                'jobDetail',
-                'compensationDetail',
-                'legalDocument',
-                'experienceDetail',
-                'emergencyContact'
-            ])->find($user->employee_id);
-
-            if (!$employee) {
-                return $this->errorResponse('Employee not found.', 404);
-            }
-
             // If role is 1 (Owner) — return all employees from the same company
             if ($user->role === 1) {
                 $employees = Employee::with([
@@ -599,9 +581,26 @@ class EmployeeController extends Controller
                 return $this->successResponse(EmployeeResource::collection($employees), 'All company employees fetched (owner).');
             }
 
-            // If employee is a manager (has subordinates)
+            // For other roles, employee_id is required
+            if (!$user->employee_id) {
+                return $this->errorResponse('Unauthorized: No employee profile linked to this user.', 403);
+            }
+
+            $employee = Employee::with([
+                'company',
+                'jobDetail',
+                'compensationDetail',
+                'legalDocument',
+                'experienceDetail',
+                'emergencyContact'
+            ])->find($user->employee_id);
+
+            if (!$employee) {
+                return $this->errorResponse('Employee not found.', 404);
+            }
+
+            // Manager role (role = 5 and isManager)
             if ($user->role == 5 && $employee->isManager()) {
-                // Eager-load subordinates with all relationships
                 $subordinateIds = $employee->subordinateEmployees()->pluck('id')->toArray();
 
                 $subordinates = Employee::with([
@@ -613,19 +612,17 @@ class EmployeeController extends Controller
                     'emergencyContact'
                 ])->whereIn('id', $subordinateIds)->get();
 
-                // Merge manager and subordinates
                 $combined = collect([$employee])->merge($subordinates);
 
                 return $this->successResponse(EmployeeResource::collection($combined), 'Manager and associates fetched.');
             }
 
-
-            // If regular employee
+            // Regular employee (role = 5, not manager)
             if ($user->role == 5) {
                 return $this->successResponse(EmployeeResource::collection(collect([$employee])), 'Single employee fetched.');
             }
 
-            // HR, Recruiter, Finance roles (2, 3, 4) → show all employees in their company
+            // HR, Recruiter, Finance roles (2, 3, 4)
             $allowedRoles = [2, 3, 4];
             if (in_array($user->role, $allowedRoles)) {
                 $employees = Employee::with([
@@ -645,9 +642,6 @@ class EmployeeController extends Controller
             return $this->errorResponse('An error occurred while fetching employees: ' . $e->getMessage(), 500);
         }
     }
-
-
-
 
     // Returns all subordinates under a manager (employee)
     public function getSubordinates($managerId)

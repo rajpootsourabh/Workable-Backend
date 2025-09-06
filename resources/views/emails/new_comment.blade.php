@@ -73,7 +73,7 @@
 
     <!-- Header -->
     <div class="header">
-      <img src="https://res.cloudinary.com/dwi5dlj62/image/upload/v1747243088/logo-bxL4WHcf_utrjxi.png" alt="{{ $data['company_name'] ?? 'Company' }} Logo">
+      <img src="https://res.cloudinary.com/dwi5dlj62/image/upload/v1756741894/hustoro_logo_white_dxorts.png" alt="{{ $data['company_name'] ?? 'Company' }} Logo">
     </div>
 
     <!-- Content -->
