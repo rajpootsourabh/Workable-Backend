@@ -102,7 +102,7 @@ class AuthController extends Controller
                 'first_name' => "Admin",
                 'last_name' => "",
                 'email' => $request->email,
-                'role' => $request->role,
+                'role' => 1, //$request->role
                 'is_active' => 1,
                 'password' => Hash::make($request->password),
             ]);

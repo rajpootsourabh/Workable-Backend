@@ -87,14 +87,14 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
         Route::post('refresh', [AuthController::class, 'refresh']);
         Route::post('test', [AuthController::class, 'me']);
 
-        // 📌 JobPost Routes
+        // JobPost Routes
         Route::get('/job/list', [JobPostController::class, 'listJobs']);
         Route::get('/job/{id}', [JobPostController::class, 'getJob']);
         Route::post('job/create', [JobPostController::class, 'createJob']);
         Route::put('job/update/{id}', [JobPostController::class, 'updateJob']);
         Route::delete('job/delete/{id}', [JobPostController::class, 'deleteJob']);
 
-        // 📌 Employee Multi-Step Form Routes
+        // Employee Multi-Step Form Routes
         Route::prefix('employee')->group(function () {
             Route::post('/', [EmployeeController::class, 'storeCompleteEmployee']); // POST /api/v.1/employee
             Route::put('/{id}', [EmployeeController::class, 'updateCompleteEmployee']); // PUT /api/v1/employee/{id}
@@ -121,9 +121,10 @@ Route::group(['middleware' => 'api', 'prefix' => 'v.1'], function ($router) {
 
             Route::post('/{applicationId}/disqualify', [JobApplicationController::class, 'disqualify']);
             Route::get('/{applicationId}', [JobApplicationController::class, 'getApplicationById']);
-
+            Route::post('/{applicationId}/files', [JobApplicationController::class, 'updateCandidateFiles']);
             // Only this PATCH route uses camel.to.snake middleware
-            Route::patch('/{applicationId}', [JobApplicationController::class, 'updateCandidateApplication'])
+            Route::put('/{applicationId}', [JobApplicationController::class, 'updateCandidateApplication'])
+
                 ->middleware('camel.to.snake');
 
             // 🗨️ Comments

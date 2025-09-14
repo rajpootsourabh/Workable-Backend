@@ -60,7 +60,7 @@ class CandidateApplicationReviewController extends Controller
                         'reviewer_name' => $employee
                             ? trim($employee->first_name . ' ' . $employee->last_name)
                             : null,
-                        'reviewer_profile_pic' => $employee?->profile_image,
+                        'reviewer_profile_pic' => generateFileUrl($employee?->profile_image),
                         'reviewer_country' => $employee?->country,
                         'reviewer_address' => $employee?->address,
                     ];

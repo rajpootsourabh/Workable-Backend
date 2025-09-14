@@ -55,42 +55,40 @@ class CandidateApplicationLogController extends Controller
     }
 
 
-public function getLogs($candidateApplicationId)
-{
-    try {
-        $logs = CandidateApplicationLog::with('changedBy.employee')
-            ->where('candidate_application_id', $candidateApplicationId)
-            ->get()
-            ->map(function ($log) {
-                $user = $log->changedBy;
-                $employee = $user?->employee;
+    public function getLogs($candidateApplicationId)
+    {
+        try {
+            $logs = CandidateApplicationLog::with('changedBy.employee')
+                ->where('candidate_application_id', $candidateApplicationId)
+                ->get()
+                ->map(function ($log) {
+                    $user = $log->changedBy;
+                    $employee = $user?->employee;
 
-                $fullName = $employee
-                    ? trim($employee->first_name . ' ' . $employee->last_name)
-                    : ($user?->name ?? null); // fallback to user name if employee not found
+                    $fullName = $employee
+                        ? trim($employee->first_name . ' ' . $employee->last_name)
+                        : ($user?->first_name . ' ' . $user?->last_name ?? null); // fallback if no employee
 
-                return [
-                    'id' => $log->id,
-                    'candidate_application_id' => $log->candidate_application_id,
-                    'from_stage' => $log->from_stage,
-                    'from_stage_label' => $log->from_stage_label ?? null,
-                    'to_stage' => $log->to_stage,
-                    'to_stage_label' => $log->to_stage_label ?? null,
-                    'changed_by' => $fullName,
-                    'changed_by_id' => $log->changed_by,
-                    'changed_at' => $log->changed_at,
-                    'note' => $log->note,
-                    'created_at' => $log->created_at,
-                    'updated_at' => $log->updated_at,
-                ];
-            });
+                    return [
+                        'id' => $log->id,
+                        'candidate_application_id' => $log->candidate_application_id,
+                        'from_stage' => $log->from_stage,
+                        'from_stage_label' => $log->from_stage_label ?? null,
+                        'to_stage' => $log->to_stage,
+                        'to_stage_label' => $log->to_stage_label ?? null,
+                        'changed_by' => $fullName,
+                        'changed_by_id' => $log->changed_by,
+                        'changed_by_profile_image' => generateFileUrl($employee?->profile_image) ?? $user?->profile_image, // ✅ added
+                        'changed_at' => $log->changed_at,
+                        'note' => $log->note,
+                        'created_at' => $log->created_at,
+                        'updated_at' => $log->updated_at,
+                    ];
+                });
 
-        return $this->successResponse($logs, 'Logs fetched successfully');
-    } catch (\Throwable $e) {
-        return $this->errorResponse('Error fetching logs', 500, $e->getMessage());
+            return $this->successResponse($logs, 'Logs fetched successfully');
+        } catch (\Throwable $e) {
+            return $this->errorResponse('Error fetching logs', 500, $e->getMessage());
+        }
     }
-}
-
-
-
 }

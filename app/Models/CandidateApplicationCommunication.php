@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class CandidateApplicationCommunication extends Model
 {
     use HasFactory;
-    
+
     protected $fillable = [
         'candidate_application_id',
         'sent_by',
@@ -16,4 +16,9 @@ class CandidateApplicationCommunication extends Model
         'subject',
         'message',
     ];
+
+    public function sender()
+    {
+        return $this->belongsTo(User::class, 'sent_by');
+    }
 }

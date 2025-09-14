@@ -102,88 +102,138 @@ class JobApplicationController extends Controller
 
     public function updateCandidateApplication(Request $request, $applicationId)
     {
-        // Find the application with candidate
         $application = CandidateApplication::with('candidate')->findOrFail($applicationId);
         $candidate = $application->candidate;
 
-        // Validate incoming fields - all nullable for partial update
-        $validated = $request->validate([
-            // Candidate fields (all nullable)
-            'first_name' => 'sometimes|string|max:255',
-            'last_name' => 'sometimes|string|max:255',
-            'designation' => 'sometimes|nullable|string|max:255',
-            'experience' => 'sometimes|nullable|numeric|min:0|max:99.9',
-            'phone' => 'sometimes|nullable|string|max:20',
-            'email'         => 'sometimes|email|unique:candidates,email,' . $candidate->id,
-            'country'       => 'sometimes|string|max:100',
-            'location' => 'sometimes|string|max:255',
-            'current_ctc' => 'sometimes|nullable|numeric|min:0',
-            'expected_ctc' => 'sometimes|nullable|numeric|min:0',
-            'profile_pic' => 'sometimes|nullable|file|mimes:jpg,jpeg,png|max:2048',
-            'resume' => 'sometimes|nullable|file|mimes:pdf,doc,docx|max:5120',
-            'source_id' => 'sometimes|nullable|integer|exists:sources,id',
-            'company_id' => 'sometimes|nullable|integer|exists:companies,id',
+        // Use top-level fields (or flatten nested input)
+        $data = $request->all();
 
-            // Application fields
-            'status' => 'sometimes|in:Applied,Screening,Interviewing,Offer,Hired,Rejected',
-        ]);
-
-        // Update candidate fields if provided
-        $candidate = $application->candidate;
-
-        $candidateFields = [
-            'first_name',
-            'last_name',
-            'designation',
-            'experience',
-            'phone',
-            'location',
-            'current_ctc',
-            'expected_ctc',
-            'source_id',
-            'company_id'
-        ];
-
-        foreach ($candidateFields as $field) {
-            if ($request->has($field)) {
-                $candidate->$field = $validated[$field];
-            }
-        }
-
-        // Handle profile_pic upload
-        if ($request->hasFile('profile_pic')) {
-            // Optionally delete old file here before storing new
-            $candidate->profile_pic = $request->file('profile_pic')->storeAs(
-                'candidates/profile_pics',
-                uniqid() . '.' . $request->file('profile_pic')->extension(),
-                'private'
-            );
-        }
-
-        // Handle resume upload
         if ($request->hasFile('resume')) {
-            // Optionally delete old file here before storing new
-            $candidate->resume = $request->file('resume')->storeAs(
-                'candidates/resumes',
-                uniqid() . '.' . $request->file('resume')->extension(),
-                'private'
-            );
+            $data['resume'] = $request->file('resume')->store('resumes', 'public');
+        }
+        if ($request->hasFile('profile_pic')) {
+            $data['profile_pic'] = $request->file('profile_pic')->store('profile_pics', 'public');
         }
 
-        $candidate->save();
+        $validated = validator($data, [
+            'first_name'   => 'required|string|max:255',
+            'last_name'    => 'required|string|max:255',
+            'designation'  => 'required|string|max:255',
+            'location'     => 'required|string|max:255',
+            'experience'   => 'required|numeric',
+            'phone'        => 'required|string|max:20',
+            'email'        => 'required|email|max:191',
+            'current_ctc'  => 'required|numeric',
+            'expected_ctc' => 'required|numeric',
+            'country'      => 'required|string|max:191',
+            'education'    => 'required|string|max:191',
+            'profile_pic'  => 'sometimes|file|mimes:jpg,jpeg,png|max:2048',
+            'resume'       => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
+        ])->validate();
 
-        // Update application fields if provided
-        if ($request->has('status')) {
-            $application->status = $validated['status'];
-        }
+        $candidate->update($validated);
 
-        $application->save();
-
-        return $this->successResponse(
-            new JobApplicationResource($application->fresh()), // fresh to reload updated data
-            'Application updated successfully'
-        );
+        return response()->json([
+            'message' => 'Candidate updated successfully',
+            'candidate' => $candidate
+        ]);
     }
+
+public function updateCandidateFiles(Request $request, $applicationId)
+{
+    Log::info('updateCandidateFiles called', [
+        'applicationId' => $applicationId,
+        'request_headers' => $request->headers->all(),
+        'request_all' => $request->all(),
+    ]);
+
+    $application = CandidateApplication::with('candidate')->findOrFail($applicationId);
+    $candidate = $application->candidate;
+
+    // Validate only the files that are present
+    $request->validate([
+        'profile_pic' => 'sometimes|file|mimes:jpg,jpeg,png|max:2048',
+        'resume'      => 'sometimes|file|mimes:pdf,doc,docx|max:5120',
+    ]);
+
+    $updateData = [];
+
+    // Debug: check file presence before processing
+    Log::info('Has profile_pic?', [$request->hasFile('profile_pic')]);
+    Log::info('Has resume?', [$request->hasFile('resume')]);
+
+    // Handle profile picture
+    if ($request->hasFile('profile_pic')) {
+        Log::info('Processing profile_pic upload...');
+
+        if ($candidate->profile_pic && Storage::disk('private')->exists($candidate->profile_pic)) {
+            Log::info('Deleting old profile_pic', ['path' => $candidate->profile_pic]);
+            Storage::disk('private')->delete($candidate->profile_pic);
+        }
+
+        $path = $request->file('profile_pic')->storeAs(
+            'candidates/profile_pics',
+            uniqid() . '.' . $request->file('profile_pic')->extension(),
+            'private'
+        );
+
+        Log::info('Stored new profile_pic', ['path' => $path]);
+        $updateData['profile_pic'] = $path;
+    }
+
+    // Handle resume
+    if ($request->hasFile('resume')) {
+        Log::info('Processing resume upload...');
+
+        if ($candidate->resume && Storage::disk('private')->exists($candidate->resume)) {
+            Log::info('Deleting old resume', ['path' => $candidate->resume]);
+            Storage::disk('private')->delete($candidate->resume);
+        }
+
+        $path = $request->file('resume')->storeAs(
+            'candidates/resumes',
+            uniqid() . '.' . $request->file('resume')->extension(),
+            'private'
+        );
+
+        Log::info('Stored new resume', ['path' => $path]);
+        $updateData['resume'] = $path;
+    }
+
+    // Only update if we have any new files
+    if (!empty($updateData)) {
+        Log::info('Updating candidate with new file paths', $updateData);
+        $candidate->update($updateData);
+    } else {
+        Log::warning('No valid files found to update');
+        return response()->json([
+            'status' => 'error',
+            'message' => 'No files uploaded or invalid file format.',
+        ], 400);
+    }
+
+    // Refresh and return URLs
+    $candidate->refresh();
+
+    $generateFileUrl = fn($filePath) => $filePath
+        ? url('api/v.1/files/' . implode('/', array_map('rawurlencode', explode('/', $filePath))))
+        : null;
+
+    $candidateWithUrls = $candidate->toArray();
+    $candidateWithUrls['profile_pic'] = $generateFileUrl($candidate->profile_pic);
+    $candidateWithUrls['resume'] = $generateFileUrl($candidate->resume);
+
+    Log::info('Returning updated candidate data', $candidateWithUrls);
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Files updated successfully',
+        'candidate' => $candidateWithUrls,
+    ]);
+}
+
+
+
 
 
     /**
@@ -250,6 +300,7 @@ class JobApplicationController extends Controller
                     'last_name' => $application->candidate->last_name,
                     'designation' => $application->candidate->designation,
                     'experience' => $application->candidate->experience,
+                    'education' => $application->candidate->education,
                     'phone' => $application->candidate->phone,
                     'email' => $application->candidate->email,
                     'country' => $application->candidate->country,
@@ -337,6 +388,7 @@ class JobApplicationController extends Controller
                 'first_name' => $candidate->first_name,
                 'last_name' => $candidate->last_name,
                 'designation' => $candidate->designation,
+                'education' => $candidate->education,
                 'experience' => $candidate->experience,
                 'phone' => $candidate->phone,
                 'email' => $candidate->email,
