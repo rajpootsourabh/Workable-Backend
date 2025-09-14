@@ -141,12 +141,6 @@ class JobApplicationController extends Controller
 
 public function updateCandidateFiles(Request $request, $applicationId)
 {
-    Log::info('updateCandidateFiles called', [
-        'applicationId' => $applicationId,
-        'request_headers' => $request->headers->all(),
-        'request_all' => $request->all(),
-    ]);
-
     $application = CandidateApplication::with('candidate')->findOrFail($applicationId);
     $candidate = $application->candidate;
 
@@ -157,17 +151,10 @@ public function updateCandidateFiles(Request $request, $applicationId)
     ]);
 
     $updateData = [];
-
-    // Debug: check file presence before processing
-    Log::info('Has profile_pic?', [$request->hasFile('profile_pic')]);
-    Log::info('Has resume?', [$request->hasFile('resume')]);
-
     // Handle profile picture
     if ($request->hasFile('profile_pic')) {
-        Log::info('Processing profile_pic upload...');
 
         if ($candidate->profile_pic && Storage::disk('private')->exists($candidate->profile_pic)) {
-            Log::info('Deleting old profile_pic', ['path' => $candidate->profile_pic]);
             Storage::disk('private')->delete($candidate->profile_pic);
         }
 
@@ -176,17 +163,12 @@ public function updateCandidateFiles(Request $request, $applicationId)
             uniqid() . '.' . $request->file('profile_pic')->extension(),
             'private'
         );
-
-        Log::info('Stored new profile_pic', ['path' => $path]);
         $updateData['profile_pic'] = $path;
     }
 
     // Handle resume
     if ($request->hasFile('resume')) {
-        Log::info('Processing resume upload...');
-
         if ($candidate->resume && Storage::disk('private')->exists($candidate->resume)) {
-            Log::info('Deleting old resume', ['path' => $candidate->resume]);
             Storage::disk('private')->delete($candidate->resume);
         }
 
@@ -195,8 +177,6 @@ public function updateCandidateFiles(Request $request, $applicationId)
             uniqid() . '.' . $request->file('resume')->extension(),
             'private'
         );
-
-        Log::info('Stored new resume', ['path' => $path]);
         $updateData['resume'] = $path;
     }
 
