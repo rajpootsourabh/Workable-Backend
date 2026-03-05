@@ -20,13 +20,17 @@ class PasswordResetController extends Controller
     public function sendResetLink(Request $request)
     {
         $request->validate([
-            'email' => 'required|email'
+            'email' => 'required|email',
+            'app_type' => 'sometimes|in:admin,main' // Optional: specify which frontend
         ]);
 
         $user = User::where('email', $request->email)->first();
         if (!$user) {
             return response()->json(['message' => 'We couldn’t find a user with that email.'], 404);
         }
+
+        // Determine which frontend URL to use
+        $frontendUrl = $this->getFrontendUrl($request, $user);
 
         // Generate token
         $token = Str::random(64);
@@ -40,13 +44,45 @@ class PasswordResetController extends Controller
             ]
         );
 
-        // Generate reset URL (Frontend URL)
-        $resetUrl = env('ADMIN_FRONTEND_URL') . "/reset-password?token={$token}&email={$user->email}";
+        // Generate reset URL with the appropriate frontend
+        $resetUrl = $frontendUrl . "/reset-password?token={$token}&email={$user->email}";
 
         // Send email
         Mail::to($user->email)->send(new ResetPasswordMail($user->first_name ?? 'User', $resetUrl));
 
         return response()->json(['message' => 'Password reset link sent successfully.']);
+    }
+
+    /**
+     * Determine which frontend URL to use
+     */
+    private function getFrontendUrl(Request $request, User $user): string
+    {
+        // Option 1: Based on request input
+        if ($request->has('app_type')) {
+            return $request->app_type === 'admin'
+                ? env('ADMIN_FRONTEND_URL', 'https://admin.hustoro.com')
+                : env('FRONTEND_URL', 'https://hustoro.com');
+        }
+
+        // Option 2: Based on user role (if admins should go to admin panel)
+        if ($user->role == 1) { // Admin role
+            return env('ADMIN_FRONTEND_URL', 'https://admin.hustoro.com');
+        }
+
+        // Option 3: Based on referer header or origin
+        $origin = $request->header('Origin') ?? $request->header('Referer');
+        if ($origin) {
+            if (str_contains($origin, 'admin.hustoro.com')) {
+                return env('ADMIN_FRONTEND_URL', 'https://admin.hustoro.com');
+            }
+            if (str_contains($origin, 'hustoro.com')) {
+                return env('FRONTEND_URL', 'https://hustoro.com');
+            }
+        }
+
+        // Default to main frontend
+        return env('FRONTEND_URL', 'https://hustoro.com');
     }
 
     /**
@@ -67,7 +103,6 @@ class PasswordResetController extends Controller
                 'message' => 'This reset link is invalid or has already been used.'
             ], 400);
         }
-
 
         // Optional: Check token expiration (assuming you store created_at)
         $expiresInMinutes = 60;

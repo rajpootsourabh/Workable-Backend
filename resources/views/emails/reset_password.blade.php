@@ -27,7 +27,7 @@
           <!-- Content -->
           <tr>
             <td style="padding:30px; color:#333333; font-size:16px; line-height:1.5;">
-              <h2 style="font-size:20px; margin:0 0 20px; color:#0f766e;">Hi {{ $name ?? 'User' }},</h2>
+              <p style="font-size:16px; margin:0 0 20px;">Hi,</p>
 
               <p style="margin:0 0 20px;">You requested a password reset for your account.</p>
               <p style="margin:0 0 30px;">Click the button below to set a new password:</p>
